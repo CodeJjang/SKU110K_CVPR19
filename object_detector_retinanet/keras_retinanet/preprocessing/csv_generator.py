@@ -18,16 +18,20 @@ limitations under the License.
 from .generator import Generator
 from object_detector_retinanet.keras_retinanet.preprocessing.get_image_size import get_image_size
 from ..utils.image import read_image_bgr
+import object_detector_retinanet.utils as utils
+
 import cv2
 import numpy as np
 from PIL import Image
 from six import raise_from
 from tqdm import tqdm
+import pickle
 
 import csv
 import sys
-import os.path
+import os
 
+IMAGES_CLS_FNAME = 'images_cls.pkl'
 
 def _parse(value, function, fmt):
     """
@@ -53,11 +57,14 @@ def _read_classes(csv_reader):
         try:
             class_name, class_id = row
         except ValueError:
-            raise_from(ValueError('line {}: format should be \'class_name,class_id\''.format(line)), None)
-        class_id = _parse(class_id, int, 'line {}: malformed class ID: {{}}'.format(line))
+            raise_from(ValueError(
+                'line {}: format should be \'class_name,class_id\''.format(line)), None)
+        class_id = _parse(
+            class_id, int, 'line {}: malformed class ID: {{}}'.format(line))
 
         if class_name in result:
-            raise ValueError('line {}: duplicate class name: \'{}\''.format(line, class_name))
+            raise ValueError(
+                'line {}: duplicate class name: \'{}\''.format(line, class_name))
         result[class_name] = class_id
     return result
 
@@ -65,7 +72,8 @@ def _read_classes(csv_reader):
 def _read_images(base_dir):
 
     result = {}
-    dirs = [os.path.join(base_dir, o) for o in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, o))]
+    dirs = [os.path.join(base_dir, o) for o in os.listdir(
+        base_dir) if os.path.isdir(os.path.join(base_dir, o))]
     if len(dirs) == 0:
         dirs = ['']
     for project in dirs:
@@ -77,7 +85,7 @@ def _read_images(base_dir):
                 img_file = os.path.join(base_dir, project, image)
                 # Check images exists
                 exists = os.path.isfile(img_file)
-                
+
                 if not exists:
                     print("Warning: Image file {} is not existing".format(img_file))
                     continue
@@ -112,17 +120,18 @@ def _read_annotations(csv_reader, classes, base_dir, image_existence):
             height = int(height)
 
             if x1 >= width:
-                x1 = width -1
+                x1 = width - 1
             if x2 >= width:
-                x2 = width -1
+                x2 = width - 1
 
             if y1 > height:
-                y1 = height -1
+                y1 = height - 1
             if y2 >= height:
-                y2 = height -1
+                y2 = height - 1
             # x1 < 0 | y1 < 0 | x2 <= 0 | y2 <= 0
             if x1 < 0 or y1 < 0 or x2 <= 0 or y2 <= 0:
-                print("Warning: Image file {} has some bad boxes annotations".format(img_file))
+                print(
+                    "Warning: Image file {} has some bad boxes annotations".format(img_file))
                 continue
 
             # Append root path
@@ -151,15 +160,19 @@ def _read_annotations(csv_reader, classes, base_dir, image_existence):
 
         # Check that the bounding box is valid.
         if x2 <= x1:
-            raise ValueError('line {}: x2 ({}) must be higher than x1 ({})'.format(line, x2, x1))
+            raise ValueError(
+                'line {}: x2 ({}) must be higher than x1 ({})'.format(line, x2, x1))
         if y2 <= y1:
-            raise ValueError('line {}: y2 ({}) must be higher than y1 ({})'.format(line, y2, y1))
+            raise ValueError(
+                'line {}: y2 ({}) must be higher than y1 ({})'.format(line, y2, y1))
 
         # check if the current class name is correctly present
         if class_name not in classes:
-            raise ValueError('line {}: unknown class name: \'{}\' (classes: {})'.format(line, class_name, classes))
+            raise ValueError('line {}: unknown class name: \'{}\' (classes: {})'.format(
+                line, class_name, classes))
 
-        result[img_file].append({'x1': x1, 'x2': x2, 'y1': y1, 'y2': y2, 'class': class_name})
+        result[img_file].append(
+            {'x1': x1, 'x2': x2, 'y1': y1, 'y2': y2, 'class': class_name})
     return result
 
 
@@ -175,6 +188,38 @@ def _open_for_csv(path):
         return open(path, 'r', newline='')
 
 
+def _save_images_to_cache(images_cls_path, images_cls):
+    print('Creating images cache at', images_cls_path)
+    with open(images_cls_path, 'wb') as output:
+        pickle.dump(images_cls, output, pickle.HIGHEST_PROTOCOL)
+
+
+def _load_images_from_cache(images_cls_path):
+    print('Loading images cache from', images_cls_path)
+    with open(images_cls_path, 'rb') as input:
+        return pickle.load(input)
+
+
+def _is_path_exists(dir_path):
+    return os.path.exists(dir_path)
+
+
+def get_image_existence(base_dir, cache_path, cache_fname):
+    """ Read images from either cache or their folder
+    """
+    cache_file_path = os.path.join(cache_path, cache_fname)
+    if cache_path is None or not _is_path_exists(cache_file_path):
+        image_existence = _read_images(base_dir)
+
+        if cache_path is not None:
+            utils.create_dirpath_if_not_exist(cache_path)
+            _save_images_to_cache(cache_file_path, image_existence)
+    else:
+        image_existence = _load_images_from_cache(cache_file_path)
+
+    return image_existence
+
+
 class CSVGenerator(Generator):
     """ Generate data for a custom CSV dataset.
 
@@ -186,6 +231,7 @@ class CSVGenerator(Generator):
             csv_data_file,
             csv_class_file,
             base_dir=None,
+            images_cls_cache_path=None,
             **kwargs
     ):
         """ Initialize a CSV data generator.
@@ -208,14 +254,16 @@ class CSVGenerator(Generator):
             with _open_for_csv(csv_class_file) as file:
                 self.classes = _read_classes(csv.reader(file, delimiter=','))
         except ValueError as e:
-            raise_from(ValueError('invalid CSV class file: {}: {}'.format(csv_class_file, e)), None)
+            raise_from(ValueError(
+                'invalid CSV class file: {}: {}'.format(csv_class_file, e)), None)
 
         self.labels = {}
         for key, value in self.classes.items():
             self.labels[value] = key
 
         # build mappings for existence
-        self.image_existence = _read_images(self.base_dir)
+        self.image_existence = get_image_existence(
+            base_dir, images_cls_cache_path, IMAGES_CLS_FNAME)
 
         # csv with img_path, x1, y1, x2, y2, class_name
         try:
@@ -223,7 +271,8 @@ class CSVGenerator(Generator):
                 self.image_data = _read_annotations(csv.reader(file, delimiter=','), self.classes, self.base_dir,
                                                     self.image_existence)
         except ValueError as e:
-            raise_from(ValueError('invalid CSV annotations file: {}: {}'.format(csv_data_file, e)), None)
+            raise_from(ValueError(
+                'invalid CSV annotations file: {}: {}'.format(csv_data_file, e)), None)
         self.image_names = list(self.image_data.keys())
 
         super(CSVGenerator, self).__init__(**kwargs)
@@ -259,7 +308,8 @@ class CSVGenerator(Generator):
 
         image = self.image_existence.get(self.image_path(image_index), None)
         if image is None:
-            print("Error: Image path {} is not existed".format(self.image_path(image_index)))
+            print("Error: Image path {} is not existed".format(
+                self.image_path(image_index)))
 
         # return float(2448) / float(3264)
         return float(image['width']) / float(image['height'])

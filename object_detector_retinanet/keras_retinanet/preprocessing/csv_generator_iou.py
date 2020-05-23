@@ -26,6 +26,8 @@ from six import raise_from
 import csv
 import sys
 import os.path
+from object_detector_retinanet.keras_retinanet.preprocessing.csv_generator import get_image_existence
+from object_detector_retinanet.keras_retinanet.preprocessing.csv_generator import IMAGES_CLS_FNAME
 
 
 def _parse(value, function, fmt):
@@ -185,6 +187,7 @@ class CSVIouGenerator(GeneratorIou):
             csv_data_file,
             csv_class_file,
             base_dir=None,
+            images_cls_cache_path=None,
             **kwargs
     ):
         """ Initialize a CSV data generator.
@@ -214,7 +217,8 @@ class CSVIouGenerator(GeneratorIou):
             self.labels[value] = key
 
         # build mappings for existence
-        self.image_existence = _read_images(self.base_dir)
+        self.image_existence = get_image_existence(
+            base_dir, images_cls_cache_path, IMAGES_CLS_FNAME)
 
         # csv with img_path, x1, y1, x2, y2, class_name
         try:

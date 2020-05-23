@@ -45,7 +45,7 @@ class Generator(object):
         image_min_side=800,
         image_max_side=1333,
         transform_parameters=None,
-        compute_anchor_targets=anchor_targets_bbox,
+        compute_anchor_targets=anchor_targets_bbox
     ):
         """ Initialize Generator object.
 
