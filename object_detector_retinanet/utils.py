@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 import platform
+import ntpath
 
 __author__ = 'roeiherz'
 
@@ -9,7 +10,7 @@ FILE_EXISTS_ERROR = (17, 'File exists')
 
 IMG_FOLDER = 'images'
 ANNOTATION_FOLDER = 'annotations'
-DEBUG_MODE = False #'ubuntu' not in os.environ['HOME']
+DEBUG_MODE = False  # 'ubuntu' not in os.environ['HOME']
 if DEBUG_MODE:
     IMG_FOLDER += '_debug'
     ANNOTATION_FOLDER += '_debug'
@@ -51,3 +52,16 @@ def image_path():
 
 def annotation_path():
     return os.path.join(root_dir(), ANNOTATION_FOLDER)
+
+
+def create_dirpath_if_not_exist(dir_path):
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+
+
+def get_path_fname(path):
+    '''
+    Extract basename from file path
+    '''
+    head, tail = ntpath.split(path)
+    return tail or ntpath.basename(head)

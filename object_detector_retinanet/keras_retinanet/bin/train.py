@@ -214,7 +214,8 @@ def create_generators(args):
             transform_generator=transform_generator,
             batch_size=args.batch_size,
             image_min_side=args.image_min_side,
-            image_max_side=args.image_max_side
+            image_max_side=args.image_max_side,
+            images_cls_cache_path=args.images_cls_cache
         )
 
         if args.val_annotations:
@@ -224,7 +225,8 @@ def create_generators(args):
                 base_dir=args.base_dir,
                 batch_size=args.batch_size,
                 image_min_side=args.image_min_side,
-                image_max_side=args.image_max_side
+                image_max_side=args.image_max_side,
+                images_cls_cache_path=args.images_cls_cache
             )
         else:
             validation_generator = None
@@ -300,6 +302,7 @@ def parse_args(args):
 
     args_snapshot_path = os.path.join(root_dir(), 'snapshot')
     args_tensorboard_dir = os.path.join(root_dir(), 'logs')
+    args_images_cls_cache = os.path.join(root_dir(), 'images_cls_cache')
 
     csv_parser = subparsers.add_parser('csv')
     csv_parser.add_argument('--annotations', help='Path to CSV file containing annotations for training.',
@@ -344,6 +347,9 @@ def parse_args(args):
                         default=800)
     parser.add_argument('--image-max-side', help='Rescale the image if the largest side is larger than max_side.',
                         type=int, default=1333)
+    parser.add_argument('--images-cls-cache',
+                        help='Path to store images classes cache (for faster loading when images are stored in the cloud)',
+                        default=args_images_cls_cache)
 
     return check_args(parser.parse_args(args))
 
