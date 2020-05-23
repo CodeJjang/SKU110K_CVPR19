@@ -65,3 +65,32 @@ def get_path_fname(path):
     '''
     head, tail = ntpath.split(path)
     return tail or ntpath.basename(head)
+
+
+def is_path_exists(dir_path):
+    return os.path.exists(dir_path)
+
+
+def create_dirpath_if_not_exist(dir_path):
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+
+
+def rm_dir(dir_path):
+    if os.path.exists(dir_path):
+        for f in os.listdir(dir_path):
+            file_path = os.path.join(dir_path, f)
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+
+
+def get_path_fname(path):
+    '''
+    Extract basename from file path
+    '''
+    head, tail = ntpath.split(path)
+    return tail or ntpath.basename(head)
+
+
+def get_last_folder(path):
+    return os.path.basename(os.path.normpath(path))
