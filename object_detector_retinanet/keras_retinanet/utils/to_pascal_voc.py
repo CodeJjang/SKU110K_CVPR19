@@ -3,6 +3,7 @@ import os
 import ntpath
 import xml.etree.cElementTree as ET
 import pandas as pd
+from object_detector_retinanet.utils import create_dirpath_if_not_exist, get_last_folder, get_path_fname, rm_dir
 
 
 class PascalVoc:
@@ -68,43 +69,20 @@ class PascalVoc:
         print(
             f'Generated {len(self.annotations_df)} Pascal annotations for {len(images_dict)} images')
 
-    def _create_dirpath_if_not_exist(self, dir_path):
-        if not os.path.exists(dir_path):
-            os.makedirs(dir_path)
-
-    def _rm_dir(self, dir_path):
-        if os.path.exists(dir_path):
-            for f in os.listdir(dir_path):
-                file_path = os.path.join(dir_path, f)
-                if os.path.isfile(file_path):
-                    os.unlink(file_path)
-
     def _assert_dirs(self):
         print('Asserting and creating dirs...')
         output_dir_path = self.output_dir_path
-        self._create_dirpath_if_not_exist(self.annotations_path)
+        create_dirpath_if_not_exist(self.annotations_path)
         remove_old_output = input(
             f'Clear old output directory? [Y\\n] ({output_dir_path})')
         if remove_old_output is 'Y':
-            self._rm_dir(output_dir_path)
-        self._create_dirpath_if_not_exist(output_dir_path)
+            rm_dir(output_dir_path)
+        create_dirpath_if_not_exist(output_dir_path)
 
     def convert(self):
         self._assert_dirs()
         print('Starting conversion...')
         self._gen_annotations()
-
-
-def get_path_fname(path):
-    '''
-    Extract basename from file path
-    '''
-    head, tail = ntpath.split(path)
-    return tail or ntpath.basename(head)
-
-
-def get_last_folder(path):
-    return os.path.basename(os.path.normpath(path))
 
 
 if __name__ == '__main__':

@@ -30,6 +30,7 @@ import pickle
 import csv
 import sys
 import os
+from object_detector_retinanet.utils import is_path_exists
 
 IMAGES_CLS_FNAME = 'images_cls.pkl'
 
@@ -199,16 +200,11 @@ def _load_images_from_cache(images_cls_path):
     with open(images_cls_path, 'rb') as input:
         return pickle.load(input)
 
-
-def _is_path_exists(dir_path):
-    return os.path.exists(dir_path)
-
-
 def get_image_existence(base_dir, cache_path, cache_fname):
     """ Read images from either cache or their folder
     """
     cache_file_path = os.path.join(cache_path, cache_fname)
-    if cache_path is None or not _is_path_exists(cache_file_path):
+    if cache_path is None or not is_path_exists(cache_file_path):
         image_existence = _read_images(base_dir)
 
         if cache_path is not None:
