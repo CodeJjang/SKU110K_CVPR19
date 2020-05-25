@@ -12,8 +12,6 @@ from object_detector_retinanet.keras_retinanet.utils.Boxes import BOX, extract_b
     perform_nms_on_image_dataframe
 from object_detector_retinanet.keras_retinanet.utils.CollapsingMoG import collapse
 from object_detector_retinanet.keras_retinanet.utils.image import read_image_bgr
-from object_detector_retinanet.utils import root_dir
-
 
 class Params:
     box_size_factor = 0.3
@@ -359,7 +357,7 @@ class DuplicateMerger(object):
         return new_candidates
 
 
-def merge_detections(image_name, results):
+def merge_detections(root_dir, image_name, results):
 #    project = 'SKU_dataset'
     result_df = pandas.DataFrame()
     result_df['x1'] = results[:, 0].astype(int)
@@ -382,7 +380,7 @@ def merge_detections(image_name, results):
 #    project = result_df['project'].iloc[0]
     image_name = result_df['image_name'].iloc[0]
     if pixel_data is None:
-        pixel_data = read_image_bgr(os.path.join(root_dir(),  image_name))
+        pixel_data = read_image_bgr(os.path.join(root_dir,  image_name))
 
     filtered_data = duplicate_merger.filter_duplicate_candidates(result_df, pixel_data)
     return filtered_data
