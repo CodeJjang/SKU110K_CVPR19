@@ -18,7 +18,7 @@ from __future__ import division
 import keras
 import numpy as np
 import cv2
-from PIL import Image
+from PIL import Image, ImageFile
 from .transform import change_transform_origin
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
