@@ -104,6 +104,7 @@ def parse_args(args):
     parser.add_argument('--images-cls-cache',
                         help='Path to store images classes cache (for faster loading when images are stored in the cloud)',
                         default=args_images_cls_cache)
+    parser.add_argument('--out_dir', help='Path to out dir results.')
 
     return parser.parse_args(args)
 
@@ -152,7 +153,8 @@ def main(args=None):
         model,
         score_threshold=args.score_threshold,
         save_path=os.path.join(root_dir(), 'res_images_iou'),
-        hard_score_rate=hard_score_rate
+        hard_score_rate=hard_score_rate,
+        root_dir=args.out_dir
     )
 
 
