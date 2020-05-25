@@ -49,7 +49,8 @@ def create_generator(args):
             args.classes,
             image_min_side=args.image_min_side,
             image_max_side=args.image_max_side,
-            base_dir=args.base_dir
+            base_dir=args.base_dir,
+            images_cls_cache_path=args.images_cls_cache
         )
     else:
         raise ValueError('Invalid data type received: {}'.format(args.dataset_type))
@@ -72,6 +73,7 @@ def parse_args(args):
 
     data_dir = annotation_path()
     args_annotations = data_dir + '/annotations_test.csv'
+    args_images_cls_cache = os.path.join(root_dir(), 'images_cls_cache')
 
     csv_parser = subparsers.add_parser('csv')
     csv_parser.add_argument('--annotations', help='Path to CSV file containing annotations for evaluation.',
@@ -99,6 +101,9 @@ def parse_args(args):
                         default=800)
     parser.add_argument('--image-max-side', help='Rescale the image if the largest side is larger than max_side.',
                         type=int, default=1333)
+    parser.add_argument('--images-cls-cache',
+                        help='Path to store images classes cache (for faster loading when images are stored in the cloud)',
+                        default=args_images_cls_cache)
 
     return parser.parse_args(args)
 
