@@ -198,7 +198,9 @@ class DuplicateMerger(object):
             ellipse_mask = cv2.fillPoly(local_m, [poly], (1, 1, 1))
             contours = cv2.findContours(ellipse_mask.copy(), cv2.RETR_EXTERNAL,
                                         cv2.CHAIN_APPROX_SIMPLE)
-            cnts.append(contours[1][0])
+            # Gave error as in this issue: https://github.com/eg4000/SKU110K_CVPR19/issues/30#issuecomment-518863544
+            # cnts.append(contours[1][0])
+            cnts.append(contours[0][0])
         center_points = mu.copy()
         distances = scipy.spatial.distance.cdist(center_points, center_points)
         scaled_distances = numpy.ndarray(shape=[k, k], dtype=numpy.float64)
