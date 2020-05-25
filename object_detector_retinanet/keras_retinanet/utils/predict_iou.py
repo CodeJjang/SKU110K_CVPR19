@@ -47,8 +47,7 @@ def predict(
     timestamp = datetime.datetime.utcnow()
     res_file = result_dir + '/detections_output_iou_{}_{}.csv'.format(hard_score_rate, timestamp)
     for i in range(generator.size()):
-        image_name = os.path.join(generator.image_path(i).split(os.path.sep)[-2],
-                                  generator.image_path(i).split(os.path.sep)[-1])
+        image_name = generator.image_path(i).split(os.path.sep)[-1]
         raw_image = generator.load_image(i)
         image = generator.preprocess_image(raw_image.copy())
         image, scale = generator.resize_image(image)
