@@ -83,7 +83,7 @@ def parse_args(args):
     parser.add_argument('--hard_score_rate', help='', default="0.5")
 
     parser.add_argument('model', help='Path to RetinaNet model.')
-    parser.add_argument('--base_dir', help='Path to base dir for CSV file.',
+    parser.add_argument('--base_dir', help='Path to base dir for images file.',
                         default=image_path())
     parser.add_argument('--convert-model',
                         help='Convert the model to an inference model (ie. the input is a training model).', type=int,
@@ -145,16 +145,17 @@ def main(args=None):
 
     # load the model
     print('Loading model, this may take a second...')
-    model = models.load_model(os.path.join(root_dir(), args.model), backbone_name=args.backbone, convert=args.convert_model, nms=False)
+    model = models.load_model(args.model, backbone_name=args.backbone, convert=args.convert_model, nms=False)
 
     # start prediction
     predict(
         generator,
         model,
         score_threshold=args.score_threshold,
-        save_path=os.path.join(root_dir(), 'res_images_iou'),
+        save_path=os.path.join(args.out_dir, 'res_images_iou'),
         hard_score_rate=hard_score_rate,
-        root_dir=args.out_dir
+        base_dir=args.base_dir,
+        out_dir=args.out_dir
     )
 
 
