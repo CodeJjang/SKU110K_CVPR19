@@ -19,8 +19,9 @@ import keras
 import numpy as np
 import cv2
 from PIL import Image
-
 from .transform import change_transform_origin
+
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 def read_image_bgr(path):
