@@ -12,8 +12,6 @@ from object_detector_retinanet.keras_retinanet.utils.Boxes import BOX, extract_b
     perform_nms_on_image_dataframe
 from object_detector_retinanet.keras_retinanet.utils.CollapsingMoG import collapse
 from object_detector_retinanet.keras_retinanet.utils.image import read_image_bgr
-from object_detector_retinanet.utils import root_dir
-
 
 class Params:
     box_size_factor = 0.3
@@ -110,7 +108,7 @@ class DuplicateMerger(object):
 
     def find_new_candidates(self, contours, heat_map, data, original_detection_centers, image):
         candidates = []
-        for contour_i, contour in enumerate(contours[1]):
+        for contour_i, contour in enumerate(contours[0]):
             contour_bounding_rect = cv2.boundingRect(contour)
 
             contour_bbox = extract_boxes_from_edge_boxes(numpy.array(contour_bounding_rect))[0]
@@ -200,7 +198,9 @@ class DuplicateMerger(object):
             ellipse_mask = cv2.fillPoly(local_m, [poly], (1, 1, 1))
             contours = cv2.findContours(ellipse_mask.copy(), cv2.RETR_EXTERNAL,
                                         cv2.CHAIN_APPROX_SIMPLE)
-            cnts.append(contours[1][0])
+            # Gave error as in this issue: https://github.com/eg4000/SKU110K_CVPR19/issues/30#issuecomment-518863544
+            # cnts.append(contours[1][0])
+            cnts.append(contours[0][0])
         center_points = mu.copy()
         distances = scipy.spatial.distance.cdist(center_points, center_points)
         scaled_distances = numpy.ndarray(shape=[k, k], dtype=numpy.float64)
@@ -359,7 +359,7 @@ class DuplicateMerger(object):
         return new_candidates
 
 
-def merge_detections(image_name, results):
+def merge_detections(root_dir, image_name, results):
 #    project = 'SKU_dataset'
     result_df = pandas.DataFrame()
     result_df['x1'] = results[:, 0].astype(int)
@@ -382,7 +382,7 @@ def merge_detections(image_name, results):
 #    project = result_df['project'].iloc[0]
     image_name = result_df['image_name'].iloc[0]
     if pixel_data is None:
-        pixel_data = read_image_bgr(os.path.join(root_dir(),  image_name))
+        pixel_data = read_image_bgr(os.path.join(root_dir,  image_name))
 
     filtered_data = duplicate_merger.filter_duplicate_candidates(result_df, pixel_data)
     return filtered_data

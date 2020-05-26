@@ -49,7 +49,8 @@ def create_generator(args):
             args.classes,
             image_min_side=args.image_min_side,
             image_max_side=args.image_max_side,
-            base_dir=args.base_dir
+            base_dir=args.base_dir,
+            images_cls_cache_path=args.images_cls_cache
         )
     else:
         raise ValueError('Invalid data type received: {}'.format(args.dataset_type))
@@ -72,6 +73,7 @@ def parse_args(args):
 
     data_dir = annotation_path()
     args_annotations = data_dir + '/annotations_test.csv'
+    args_images_cls_cache = os.path.join(root_dir(), 'images_cls_cache')
 
     csv_parser = subparsers.add_parser('csv')
     csv_parser.add_argument('--annotations', help='Path to CSV file containing annotations for evaluation.',
@@ -81,7 +83,7 @@ def parse_args(args):
     parser.add_argument('--hard_score_rate', help='', default="0.5")
 
     parser.add_argument('model', help='Path to RetinaNet model.')
-    parser.add_argument('--base_dir', help='Path to base dir for CSV file.',
+    parser.add_argument('--base_dir', help='Path to base dir for images file.',
                         default=image_path())
     parser.add_argument('--convert-model',
                         help='Convert the model to an inference model (ie. the input is a training model).', type=int,
@@ -99,6 +101,10 @@ def parse_args(args):
                         default=800)
     parser.add_argument('--image-max-side', help='Rescale the image if the largest side is larger than max_side.',
                         type=int, default=1333)
+    parser.add_argument('--images-cls-cache',
+                        help='Path to store images classes cache (for faster loading when images are stored in the cloud)',
+                        default=args_images_cls_cache)
+    parser.add_argument('--out_dir', help='Path to out dir results.')
 
     return parser.parse_args(args)
 
@@ -139,15 +145,17 @@ def main(args=None):
 
     # load the model
     print('Loading model, this may take a second...')
-    model = models.load_model(os.path.join(root_dir(), args.model), backbone_name=args.backbone, convert=args.convert_model, nms=False)
+    model = models.load_model(args.model, backbone_name=args.backbone, convert=args.convert_model, nms=False)
 
     # start prediction
     predict(
         generator,
         model,
         score_threshold=args.score_threshold,
-        save_path=os.path.join(root_dir(), 'res_images_iou'),
-        hard_score_rate=hard_score_rate
+        save_path=os.path.join(args.out_dir, 'res_images_iou'),
+        hard_score_rate=hard_score_rate,
+        base_dir=args.base_dir,
+        out_dir=args.out_dir
     )
 
 

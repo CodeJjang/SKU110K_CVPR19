@@ -21,7 +21,7 @@ import csv
 import datetime
 
 from object_detector_retinanet.keras_retinanet.utils import EmMerger
-from object_detector_retinanet.utils import create_folder, root_dir
+from object_detector_retinanet.utils import create_folder
 from .visualization import draw_detections, draw_annotations
 
 import numpy as np
@@ -36,17 +36,18 @@ def predict(
         score_threshold=0.05,
         max_detections=9999,
         save_path=None,
-        hard_score_rate=1.):
+        hard_score_rate=1.,
+        base_dir=None,
+        out_dir=None):
     all_detections = [[None for i in range(generator.num_classes())] for j in range(generator.size())]
     csv_data_lst = []
     csv_data_lst.append(['image_id', 'x1', 'y1', 'x2', 'y2', 'confidence', 'hard_score'])
-    result_dir = os.path.join(root_dir(), 'results')
+    result_dir = os.path.join(out_dir, 'results')
     create_folder(result_dir)
     timestamp = datetime.datetime.utcnow()
     res_file = result_dir + '/detections_output_iou_{}_{}.csv'.format(hard_score_rate, timestamp)
     for i in range(generator.size()):
-        image_name = os.path.join(generator.image_path(i).split(os.path.sep)[-2],
-                                  generator.image_path(i).split(os.path.sep)[-1])
+        image_name = generator.image_path(i).split(os.path.sep)[-1]
         raw_image = generator.load_image(i)
         image = generator.preprocess_image(raw_image.copy())
         image, scale = generator.resize_image(image)
@@ -78,7 +79,7 @@ def predict(
         results = np.concatenate(
             [image_boxes, np.expand_dims(image_scores, axis=1), np.expand_dims(image_hard_scores, axis=1),
              np.expand_dims(image_labels, axis=1)], axis=1)
-        filtered_data = EmMerger.merge_detections(image_name, results)
+        filtered_data = EmMerger.merge_detections(base_dir, image_name, results)
         filtered_boxes = []
         filtered_scores = []
         filtered_labels = []
@@ -108,7 +109,7 @@ def predict(
         print('{}/{}'.format(i + 1, generator.size()), end='\r')
 
     # Save annotations csv file
-    with open(res_file, 'wb') as fl_csv:
+    with open(res_file, 'w') as fl_csv:
         writer = csv.writer(fl_csv)
         writer.writerows(csv_data_lst)
     print("Saved output.csv file")
