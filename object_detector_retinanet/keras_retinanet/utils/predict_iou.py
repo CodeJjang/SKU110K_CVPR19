@@ -109,7 +109,7 @@ def predict(
         print('{}/{}'.format(i + 1, generator.size()), end='\r')
 
     # Save annotations csv file
-    with open(res_file, 'wb') as fl_csv:
+    with open(res_file, 'w') as fl_csv:
         writer = csv.writer(fl_csv)
         writer.writerows(csv_data_lst)
     print("Saved output.csv file")
