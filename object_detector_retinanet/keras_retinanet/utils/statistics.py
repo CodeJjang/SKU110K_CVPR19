@@ -1,4 +1,3 @@
-#%%
 import argparse
 import os
 import ntpath
@@ -7,10 +6,10 @@ import pandas as pd
 import numpy as np
 from collections import Counter
 from object_detector_retinanet.utils import create_dirpath_if_not_exist, get_last_folder, get_path_fname, rm_dir
-from bokeh.layouts import widgetbox
-from bokeh.models import ColumnDataSource
+from bokeh.models import ColumnDataSource, Column
 from bokeh.models.widgets import DataTable, DateFormatter, TableColumn
 from bokeh.io import show, output_notebook
+from IPython.display import display
 
 class StatisticsGenerator:
     """A class responsible for generating statistics about our SKU110K dataset"""
@@ -22,16 +21,12 @@ class StatisticsGenerator:
         self.total_df = pd.concat([train_df, val_df, test_df])
 
     def vis_table(self, data_df):
-        data = data_df.to_dict()
-        source = ColumnDataSource(data)
-        
-        colums = [TableColumn(field=col, title=col) for col in data.keys()]
-        data_table = DataTable(source=source, columns=columns, width=400, height=280)
-        show(widgetbox(data_table))
+        display(data_df)
 
     def calc_images_and_objects_amounts(self):
         columns = ['#imgs', '#objects', 'avg #objects/imgs']
-        columns = [f'{split} {col}' for col in columns for split in ['Train, Val, Test, All']]
+        splits = ['Train', 'Val', 'Test', 'All']
+        columns = pd.MultiIndex.from_tuples([(split, col) for split in splits for col in columns])
         
         data = []
         dfs = [self.train_df, self.val_df, self.test_df, self.total_df]
@@ -39,10 +34,11 @@ class StatisticsGenerator:
             imgs_amount = len(set(df['image_name']))
             objects_amount = len(df)
             objects_per_image = Counter(df['image_name'])
-            avg_objects_per_image = np.mean(list(Counter(objects_per_image).values()))
-            data.append([imgs_amount, objects_amount, objects_per_image, avg_objects_per_image])
+            avg_objects_per_image = int(np.floor(np.mean(list(Counter(objects_per_image).values()))))
+            data += [imgs_amount, objects_amount, avg_objects_per_image]
         
-        return data
+        result_df = pd.DataFrame(data=np.array([data]), columns=columns)
+        return result_df
 
 
 if __name__ == '__main__':
@@ -71,6 +67,7 @@ if __name__ == '__main__':
     test_df = pd.read_csv(args.test_annotations, names=columns)
     
     gen = StatisticsGenerator(train_df, val_df, test_df)
-    if args.statistic is 'imgs-objs-table':
+    if args.statistic == 'imgs-objs-table':
         data = gen.calc_images_and_objects_amounts()
         gen.vis_table(data)
+
