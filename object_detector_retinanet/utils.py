@@ -3,6 +3,7 @@ import os
 import sys
 import platform
 import ntpath
+import csv
 
 __author__ = 'roeiherz'
 
@@ -94,3 +95,23 @@ def get_path_fname(path):
 
 def get_last_folder(path):
     return os.path.basename(os.path.normpath(path))
+
+
+def trim_csv_to_lines(csv_path, max_lines):
+    if max_lines < 0:
+        return
+    with open(csv_path, 'r', newline='') as f:
+        reader = csv.reader(f, delimiter=',')
+        lines = [row for row in reader]
+
+    # Trim
+    lines = lines[:max_lines]
+    split = csv_path.split('.')
+    new_csv_path = f'{split[0]}_{max_lines}_lines.{split[1]}'
+
+    with open(new_csv_path, 'w') as f:
+        writer = csv.writer(f, delimiter=',')
+        for line in lines:
+            writer.writerow(line)
+
+    return new_csv_path

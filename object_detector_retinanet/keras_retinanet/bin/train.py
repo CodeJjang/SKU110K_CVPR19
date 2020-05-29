@@ -216,7 +216,8 @@ def create_generators(args):
             batch_size=args.batch_size,
             image_min_side=args.image_min_side,
             image_max_side=args.image_max_side,
-            images_cls_cache_path=args.images_cls_cache
+            images_cls_cache_path=args.images_cls_cache,
+            max_annotations=args.max_annotations
         )
 
         if args.val_annotations:
@@ -227,7 +228,8 @@ def create_generators(args):
                 batch_size=args.batch_size,
                 image_min_side=args.image_min_side,
                 image_max_side=args.image_max_side,
-                images_cls_cache_path=args.images_cls_cache
+                images_cls_cache_path=args.images_cls_cache,
+                max_annotations=args.max_annotations
             )
         else:
             validation_generator = None
@@ -351,6 +353,7 @@ def parse_args(args):
     parser.add_argument('--images-cls-cache',
                         help='Path to store images classes cache (for faster loading when images are stored in the cloud)',
                         default=args_images_cls_cache)
+    parser.add_argument('--max-annotations', help='Trim annotations to max number (easier debugging)', type=int)
 
     return check_args(parser.parse_args(args))
 

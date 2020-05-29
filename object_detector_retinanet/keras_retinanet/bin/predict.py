@@ -50,7 +50,8 @@ def create_generator(args):
             image_min_side=args.image_min_side,
             image_max_side=args.image_max_side,
             base_dir=args.base_dir,
-            images_cls_cache_path=args.images_cls_cache
+            images_cls_cache_path=args.images_cls_cache,
+            max_annotations=args.max_annotations
         )
     else:
         raise ValueError('Invalid data type received: {}'.format(args.dataset_type))
@@ -105,6 +106,7 @@ def parse_args(args):
                         help='Path to store images classes cache (for faster loading when images are stored in the cloud)',
                         default=args_images_cls_cache)
     parser.add_argument('--out_dir', help='Path to out dir results.')
+    parser.add_argument('--max-annotations', help='Trim annotations to max number (easier debugging)', type=int)
 
     return parser.parse_args(args)
 

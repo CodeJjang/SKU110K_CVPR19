@@ -31,7 +31,7 @@ import csv
 import sys
 import os
 import logging
-from object_detector_retinanet.utils import is_path_exists
+from object_detector_retinanet.utils import is_path_exists, trim_csv_to_lines
 
 IMAGES_CLS_FNAME = 'images_cls.pkl'
 
@@ -229,6 +229,7 @@ class CSVGenerator(Generator):
             csv_class_file,
             base_dir=None,
             images_cls_cache_path=None,
+            max_annotations=None,
             **kwargs
     ):
         """ Initialize a CSV data generator.
@@ -241,6 +242,10 @@ class CSVGenerator(Generator):
         self.image_names = []
         self.image_data = {}
         self.base_dir = base_dir
+
+        # Trim annotations if max_annotations is set
+        if max_annotations >= 0:
+            csv_data_file = trim_csv_to_lines(csv_data_file, max_annotations)
 
         # Take base_dir from annotations file if not explicitly specified.
         if self.base_dir is None:
