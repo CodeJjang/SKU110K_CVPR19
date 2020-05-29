@@ -11,8 +11,8 @@ tqdm = "*"
 pillow = "*"
 keras-retinanet = "*"
 pandas = "*"
-bokeh = "*"
 
 [dev-packages]
 jupyter = "*"
 matplotlib = "*"
+bokeh = "*"
