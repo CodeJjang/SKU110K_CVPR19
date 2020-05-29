@@ -244,7 +244,7 @@ class CSVGenerator(Generator):
         self.base_dir = base_dir
 
         # Trim annotations if max_annotations is set
-        if max_annotations is not None and max_annotations >= 0:
+        if max_annotations is not None and max_annotations > 0:
             csv_data_file = trim_csv_to_lines(csv_data_file, max_annotations)
 
         # Take base_dir from annotations file if not explicitly specified.
