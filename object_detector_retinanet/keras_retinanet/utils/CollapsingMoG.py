@@ -2,7 +2,7 @@ import math
 
 import scipy
 import numpy
-
+import logging
 import signal
 
 class Timeout():
@@ -107,7 +107,7 @@ def collapse(original_detection_centers, k, offset, max_iter=100, epsilon=1e-100
 
             beta, mu_prime, covariance_prime = agglomerative_init(alpha.copy(), mu.copy(), covariance.copy(), n, k)
     except Timeout.Timeout:
-        print ("agglomerative_init Timeout - using fallback")
+        logging.warning ("agglomerative_init Timeout - using fallback")
         return None, None, None
 
     try:
@@ -133,15 +133,15 @@ def collapse(original_detection_centers, k, offset, max_iter=100, epsilon=1e-100
                     d_val += alpha_ * min_dist
                 delta = prev_d_val - d_val
                 if delta < 0:
-                    print('EM bug - not monotonic- using fallback')
+                    logging.warning('EM bug - not monotonic- using fallback')
                     return beta_init, mu_prime_init, covariance_prime_init
                 #Log.debug('Iteration {}, d_val={}, delta={}, k={}, n={}'.format(iteration, d_val, delta, k, n))
 
             if delta > epsilon:
-                print('EM did not converge- using fallback')
+                logging.warning('EM did not converge- using fallback')
                 return beta_init, mu_prime_init, covariance_prime_init
     except Timeout.Timeout:
-        print ("EM Timeout - using fallback")
+        logging.warning ("EM Timeout - using fallback")
     return beta, mu_prime, covariance_prime
 
 

@@ -26,6 +26,7 @@ from six import raise_from
 import csv
 import sys
 import os.path
+import logging
 from object_detector_retinanet.keras_retinanet.preprocessing.csv_generator import get_image_existence
 from object_detector_retinanet.keras_retinanet.preprocessing.csv_generator import IMAGES_CLS_FNAME
 
@@ -79,7 +80,7 @@ def _read_images(base_dir):
                 exists = os.path.isfile(img_file)
                 
                 if not exists:
-                    print("Warning: Image file {} is not existing".format(img_file))
+                    logging.warning("Warning: Image file {} is not existing".format(img_file))
                     continue
 
                 # Image shape
@@ -89,7 +90,7 @@ def _read_images(base_dir):
                 # if i == 10:
                 #     break
             except Exception as e:
-                print("Error: {} in image: {}".format(str(e), img_file))
+                logging.error("Error: {} in image: {}".format(str(e), img_file))
                 continue
 
     return result
@@ -123,14 +124,14 @@ def _read_annotations(csv_reader, classes, base_dir, image_existence):
 
             # x1 < 0 | y1 < 0 | x2 <= 0 | y2 <= 0
             if x1 < 0 or y1 < 0 or x2 <= 0 or y2 <= 0:
-                print("Warning: Image file {} has some bad boxes annotations".format(img_file))
+                logging.warning("Warning: Image file {} has some bad boxes annotations".format(img_file))
                 continue
 
             # Append root path
             img_file = os.path.join(base_dir, img_file)
             # Check images exists
             if img_file not in image_existence:
-                print("Warning: Image file {} is not existing".format(img_file))
+                logging.warning("Warning: Image file {} is not existing".format(img_file))
                 continue
 
         except ValueError:
@@ -262,7 +263,7 @@ class CSVIouGenerator(GeneratorIou):
 
         image = self.image_existence.get(self.image_path(image_index), None)
         if image is None:
-            print("Error: Image path {} is not existed".format(self.image_path(image_index)))
+            logging.error("Error: Image path {} is not existed".format(self.image_path(image_index)))
 
         # return float(2448) / float(3264)
         return float(image['width']) / float(image['height'])

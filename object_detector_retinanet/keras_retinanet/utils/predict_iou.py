@@ -14,19 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from __future__ import print_function
-
 import csv
 
 import datetime
-
+import logging
 from object_detector_retinanet.keras_retinanet.utils import EmMerger
 from object_detector_retinanet.utils import create_folder
 from .visualization import draw_detections, draw_annotations
-
 import numpy as np
 import os
-
+from tqdm import tqdm
 import cv2
 
 
@@ -46,7 +43,8 @@ def predict(
     create_folder(result_dir)
     timestamp = datetime.datetime.utcnow()
     res_file = result_dir + '/detections_output_iou_{}_{}.csv'.format(hard_score_rate, timestamp)
-    for i in range(generator.size()):
+
+    for i in tqdm(range(generator.size())):
         image_name = generator.image_path(i).split(os.path.sep)[-1]
         raw_image = generator.load_image(i)
         image = generator.preprocess_image(raw_image.copy())
@@ -106,10 +104,8 @@ def predict(
         for label in range(generator.num_classes()):
             all_detections[i][label] = image_detections[image_detections[:, -1] == label, :-1]
 
-        print('{}/{}'.format(i + 1, generator.size()), end='\r')
-
     # Save annotations csv file
     with open(res_file, 'w') as fl_csv:
         writer = csv.writer(fl_csv)
         writer.writerows(csv_data_lst)
-    print("Saved output.csv file")
+    logging.info(f'Saved output file at: {res_file}')

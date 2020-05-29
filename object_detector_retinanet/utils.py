@@ -30,11 +30,11 @@ def create_folder(path):
             os.makedirs(path)
         except OSError as e:
             if (e.errno, e.strerror) == FILE_EXISTS_ERROR:
-                print(e)
+                logging.error(e)
             else:
                 raise
 
-        print('Created folder {0}'.format(path))
+        logging.info('Created folder {0}'.format(path))
 
     return folder_missing
 

@@ -22,6 +22,7 @@ import os
 import sys
 import time
 import warnings
+import logging
 
 import keras
 import keras.preprocessing.image
@@ -45,7 +46,7 @@ from object_detector_retinanet.keras_retinanet.utils.anchors import make_shapes_
 from object_detector_retinanet.keras_retinanet.utils.keras_version import check_keras_version
 from object_detector_retinanet.keras_retinanet.utils.model import freeze as freeze_model
 from object_detector_retinanet.keras_retinanet.utils.transform import random_transform_generator
-
+from object_detector_retinanet.keras_retinanet.utils.logging import configure_logging
 from object_detector_retinanet.utils import create_folder, image_path, annotation_path, root_dir, DEBUG_MODE
 
 
@@ -355,6 +356,7 @@ def parse_args(args):
 
 
 def main(args=None):
+    configure_logging()
     # parse arguments
     if args is None:
         args = sys.argv[1:]
@@ -389,18 +391,18 @@ def main(args=None):
     stmp = time.strftime("%c").replace(":", "_").replace(" ", "_")
     args.snapshot_path = os.path.join(args.snapshot_path, stmp)
     args.tensorboard_dir = os.path.join(args.tensorboard_dir, stmp)
-    print("Weights will be saved in  {}".format(args.snapshot_path))
-    print("Logs will be saved in {}".format(args.tensorboard_dir))
+    logging.info("Weights will be saved in  {}".format(args.snapshot_path))
+    logging.info("Logs will be saved in {}".format(args.tensorboard_dir))
     create_folder(args.snapshot_path)
     create_folder(args.tensorboard_dir)
 
     # create the generators
     train_generator, validation_generator = create_generators(args)
-    print('train_size:{},val_size:{}'.format(train_generator.size(),validation_generator.size()))
+    logging.info('train_size:{},val_size:{}'.format(train_generator.size(),validation_generator.size()))
 
     # create the model
     if args.snapshot is not None:
-        print('Loading model, this may take a second...')
+        logging.info('Loading model, this may take a second...')
         model = models.load_model(args.snapshot, backbone_name=args.backbone)
         training_model = model
         prediction_model = retinanet_bbox(model=model)
@@ -410,7 +412,7 @@ def main(args=None):
         if weights is None and args.imagenet_weights:
             weights = backbone.download_imagenet()
 
-        print('Creating model, this may take a second...')
+        logging.info('Creating model, this may take a second...')
         model, training_model, prediction_model = create_models(
             backbone_retinanet=backbone.retinanet,
             num_classes=train_generator.num_classes(),

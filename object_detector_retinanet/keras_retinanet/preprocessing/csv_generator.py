@@ -30,6 +30,7 @@ import pickle
 import csv
 import sys
 import os
+import logging
 from object_detector_retinanet.utils import is_path_exists
 
 IMAGES_CLS_FNAME = 'images_cls.pkl'
@@ -80,7 +81,7 @@ def _read_images(base_dir):
     for project in dirs:
         project_imgs = os.listdir(os.path.join(base_dir, project))
         i = 0
-        print("Loading images...")
+        logging.info("Loading images...")
         for image in tqdm(project_imgs):
             try:
                 img_file = os.path.join(base_dir, project, image)
@@ -88,7 +89,7 @@ def _read_images(base_dir):
                 exists = os.path.isfile(img_file)
 
                 if not exists:
-                    print("Warning: Image file {} is not existing".format(img_file))
+                    logging.warning("Warning: Image file {} is not existing".format(img_file))
                     continue
 
                 # Image shape
@@ -98,7 +99,7 @@ def _read_images(base_dir):
                 # if i == 10:
                 #     break
             except Exception as e:
-                print("Error: {} in image: {}".format(str(e), img_file))
+                logging.error("Error: {} in image: {}".format(str(e), img_file))
                 continue
 
     return result
@@ -131,7 +132,7 @@ def _read_annotations(csv_reader, classes, base_dir, image_existence):
                 y2 = height - 1
             # x1 < 0 | y1 < 0 | x2 <= 0 | y2 <= 0
             if x1 < 0 or y1 < 0 or x2 <= 0 or y2 <= 0:
-                print(
+                logging.warning(
                     "Warning: Image file {} has some bad boxes annotations".format(img_file))
                 continue
 
@@ -139,7 +140,7 @@ def _read_annotations(csv_reader, classes, base_dir, image_existence):
             img_file = os.path.join(base_dir, img_file)
             # Check images exists
             if img_file not in image_existence:
-                print("Warning: Image file {} is not existing".format(img_file))
+                logging.warning("Warning: Image file {} is not existing".format(img_file))
                 continue
 
         except ValueError:
@@ -190,13 +191,13 @@ def _open_for_csv(path):
 
 
 def _save_images_to_cache(images_cls_path, images_cls):
-    print('Creating images cache at', images_cls_path)
+    logging.info(f'Creating images cache at {images_cls_path}')
     with open(images_cls_path, 'wb') as output:
         pickle.dump(images_cls, output, pickle.HIGHEST_PROTOCOL)
 
 
 def _load_images_from_cache(images_cls_path):
-    print('Loading images cache from', images_cls_path)
+    logging.info(f'Loading images cache from {images_cls_path}')
     with open(images_cls_path, 'rb') as input:
         return pickle.load(input)
 
@@ -304,7 +305,7 @@ class CSVGenerator(Generator):
 
         image = self.image_existence.get(self.image_path(image_index), None)
         if image is None:
-            print("Error: Image path {} is not existed".format(
+            logging.error("Error: Image path {} is not existed".format(
                 self.image_path(image_index)))
 
         # return float(2448) / float(3264)

@@ -14,10 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from __future__ import print_function
-
 import keras
 import sys
+import logging
 
 minimum_keras_version = 2, 1, 3
 
@@ -51,5 +50,5 @@ def check_keras_version():
     try:
         assert_keras_version()
     except AssertionError as e:
-        print(e, file=sys.stderr)
+        logging.error(e, file=sys.stderr)
         sys.exit(1)

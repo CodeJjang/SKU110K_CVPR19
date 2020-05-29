@@ -1,4 +1,5 @@
 import numpy
+import logging
 
 X1 = 'x1'
 X2 = 'x2'
@@ -35,7 +36,7 @@ def reshape_vector(ndarr):
 
     if len(ndarr.shape) == 1:
         if len(ndarr) == 0:
-            print('ndarray is empty, will not reshape')
+            logging.warning('ndarray is empty, will not reshape')
             return ndarr
         ndarr_mat = ndarr.copy()
         ndarr_mat.resize(1, ndarr.size)
@@ -144,7 +145,7 @@ def non_maximal_suppression(boxes, scores=None, labels=None, overlap_threshold=0
 def perform_nms_on_image_dataframe(image_data, overlap_threshold=0.5):
     number_of_images = len(image_data['image_name'].unique())
     if number_of_images > 1:
-        print('nms received data including more than 1 image - cannot perform nms!')
+        logging.warning('nms received data including more than 1 image - cannot perform nms!')
     image_boxes = image_data.as_matrix(BOX_CONSTANTS)
     image_scores = numpy.array(image_data['confidence'])
 

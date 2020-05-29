@@ -23,14 +23,14 @@ import sys
 import keras
 import numpy
 import tensorflow as tf
-
+import logging
 
 from object_detector_retinanet.keras_retinanet import models
 from object_detector_retinanet.keras_retinanet.preprocessing.csv_generator import CSVGenerator
 from object_detector_retinanet.keras_retinanet.utils.predict_iou import predict
 from object_detector_retinanet.keras_retinanet.utils.keras_version import check_keras_version
+from object_detector_retinanet.keras_retinanet.utils.logging import configure_logging
 from object_detector_retinanet.utils import image_path, annotation_path, root_dir
-
 
 def get_session():
     """ Construct a modified tf session.
@@ -110,6 +110,7 @@ def parse_args(args):
 
 
 def main(args=None):
+    configure_logging()
     # parse arguments
     if args is None:
         args = sys.argv[1:]
@@ -118,7 +119,7 @@ def main(args=None):
         hard_score_rate = float(args.hard_score_rate.lower())
     else:
         hard_score_rate = 0.5
-    print ("hard_score_rate={}".format(hard_score_rate))
+    logging.info("hard_score_rate={}".format(hard_score_rate))
     # make sure keras is the minimum required version
     check_keras_version()
 
@@ -144,7 +145,7 @@ def main(args=None):
     generator = create_generator(args)
 
     # load the model
-    print('Loading model, this may take a second...')
+    logging.info('Loading model, this may take a second...')
     model = models.load_model(args.model, backbone_name=args.backbone, convert=args.convert_model, nms=False)
 
     # start prediction
