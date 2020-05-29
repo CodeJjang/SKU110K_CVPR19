@@ -142,7 +142,7 @@ class DuplicateMerger(object):
                         beta, mu, cov = collapse(original_detection_centers[original_indexes].copy(), k, offset,
                                                  max_iter=20, epsilon=1e-10)
                     if mu is None:  # k<=Params.min_k or EM failed
-                        logging.warning (n, k, ' k<=Params.min_k or EM failed')
+                        logging.warning(f'{n}, {k},  k<=Params.min_k or EM failed')
                         self.perform_nms(candidates, contour_i, curr_data)
                     else:  # successful EM
                         cov, mu, num, roi = self.remove_redundant(contour_bbox, cov, k, mu, image, sub_heat_map)
