@@ -3,6 +3,7 @@ python -u object_detector_retinanet/keras_retinanet/bin/train.py \
   --snapshot-path "$FOLDERNAME/snapshots" \
   --tensorboard-dir "$FOLDERNAME/logs" \
   --images-cls-cache "$FOLDERNAME/images_cls_cache" \
+  --epochs 1 \
   --max-annotations 157 \
     csv \
   --base_dir "$DATASET_FOLDERNAME/images" \
