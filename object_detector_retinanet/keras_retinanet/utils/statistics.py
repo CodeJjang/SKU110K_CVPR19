@@ -9,8 +9,10 @@ from object_detector_retinanet.utils import create_dirpath_if_not_exist, get_las
 from bokeh.models import ColumnDataSource, Column
 from bokeh.models.widgets import DataTable, DateFormatter, TableColumn
 from bokeh.io import show, output_notebook
-from bokeh.plotting import figure
-from bokeh.palettes import Dark2_5 as palette
+from bokeh.plotting import figure, curdoc
+from bokeh.palettes import Spectral4 as palette
+from bokeh.layouts import column, row
+from bokeh.models import Select
 from IPython.display import display
 import itertools
 
@@ -23,9 +25,9 @@ class StatisticsGenerator:
         self.val_df = val_df
         self.test_df = test_df
         self.total_df = pd.concat([train_df, val_df, test_df])
-        self.all_dfs = [self.train_df, self.val_df,
-                        self.test_df, self.total_df]
-        self.splits = ['Train', 'Val', 'Test', 'All']
+        self.all_dfs = [self.total_df,
+                        self.train_df, self.val_df, self.test_df]
+        self.splits = ['All', 'Train', 'Val', 'Test']
 
     def vis_table(self, data_df):
         display(data_df)
@@ -54,13 +56,16 @@ class StatisticsGenerator:
         fig.xaxis.axis_label = data_dfs[0].keys()[0]
         fig.yaxis.axis_label = data_dfs[0].keys()[1]
 
-        data_dfs = zip(data_dfs, itertools.cycle(palette))
-        for df, color in data_dfs:
+        data_dfs = zip(data_dfs, self.splits, palette)
+        for idx, (df, name, color) in enumerate(data_dfs):
             x_col, y_col = df.keys()
-            fig.circle(x=x_col, y=y_col,
-                       source=ColumnDataSource(df),
-                       size=10, color=color, alpha=0.5)
-            break
+            circle = fig.circle(df[x_col], df[y_col], legend_label=name,
+                                size=10, color=color, alpha=0.3)
+            if idx != 0:
+                circle.visible = False
+
+        fig.legend.location = "top_right"
+        fig.legend.click_policy = "hide"
         show(fig)
 
     def calc_box_areas(self):
