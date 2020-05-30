@@ -1,26 +1,29 @@
 import argparse
 import os
 import ntpath
-import xml.etree.cElementTree as ET
 import pandas as pd
 import numpy as np
 from collections import Counter
 from object_detector_retinanet.utils import create_dirpath_if_not_exist, get_last_folder, get_path_fname, rm_dir
+from object_detector_retinanet.keras_retinanet.utils.visualization import draw_boxes
+from object_detector_retinanet.keras_retinanet.utils.image import resize_image
 from bokeh.models import ColumnDataSource, Column
 from bokeh.models.widgets import DataTable, DateFormatter, TableColumn
 from bokeh.io import show, output_notebook
 from bokeh.plotting import figure, curdoc
 from bokeh.palettes import Spectral4 as palette
-from bokeh.layouts import column, row
+from bokeh.layouts import column, gridplot, row
 from bokeh.models import Select
+import matplotlib.patches as patches
 from IPython.display import display
 import itertools
+from PIL import Image
 
 
 class StatisticsGenerator:
     """A class responsible for generating statistics about our SKU110K dataset"""
 
-    def __init__(self, train_df, val_df, test_df):
+    def __init__(self, train_df, val_df, test_df, base_dir=None):
         self.train_df = train_df
         self.val_df = val_df
         self.test_df = test_df
@@ -28,6 +31,7 @@ class StatisticsGenerator:
         self.all_dfs = [self.total_df,
                         self.train_df, self.val_df, self.test_df]
         self.splits = ['All', 'Train', 'Val', 'Test']
+        self.base_dir = base_dir
 
     def vis_table(self, data_df):
         display(data_df)
@@ -86,10 +90,56 @@ class StatisticsGenerator:
 
         return data
 
+    def get_images_with_gt_boxes(self, amount):
+        df = pd.concat(self.all_dfs).sample(amount)
+        image_names = len(set(df['image_name']))
+        imgs = []
+        for img_name in image_names:
+            img_rows = df.loc[df['image_name'] == img_name]
+            boxes = [[x1, y1, x2, y2] for (x1, y1, x2, y2) in df['x1', 'y1', 'x2', 'y2']]
+            img_path = os.path.join(self.base_dir, img_name)
+            img = np.asarray(Image.open(img_path).convert('RGBA'))
+
+            img, image_scale = resize_image(img, 300, 300)
+            # Apply resizing to annotations too
+            boxes = boxes.astype(float) * image_scale
+            draw_boxes(img, boxes, (255, 0, 0, 255), thickness=1)
+            imgs.append(img)
+
+        return imgs
+
+    def vis_images(self, imgs):
+        figs = []
+        for img in imgs:
+            # Flip top down to be displayed correctly in bokeh
+            img = img[::-1]
+            print('img shape:', img.shape)
+            height, width, _ = img.shape
+            print('height:', height)
+            print('width:', width)
+            p = figure(x_range=(0, width), y_range=(0, height))
+
+            # Hide all axes
+            p.xaxis.visible = None
+            p.yaxis.visible = None
+            p.xgrid.grid_line_color = None
+            p.ygrid.grid_line_color = None
+            p.outline_line_alpha = 0
+
+            p.image_rgba([img], x=0, y=0, dw=width, dh=height)
+            figs.append(p)
+
+        grid = gridplot(figs, ncols=3, plot_width=300, plot_height=300)
+        show(grid)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Outputs statistics about our dataset')
+    parser.add_argument('--base_dir', type=str, required=False,
+                        help='base directory for images')
+    parser.add_argument('--images', type=int, required=False, default=6,
+                        help='amount of images to display in --statistic plot-images')
     parser.add_argument('--train-annotations', type=str,
                         help='csv train annotations file full path')
     parser.add_argument('--val-annotations', type=str,
@@ -98,7 +148,7 @@ if __name__ == '__main__':
                         help='csv test annotations file full path')
     parser.add_argument('--colab', action='store_true', default=False,
                         help='whether we are running in colab')
-    parser.add_argument('--statistic', choices=['imgs-objs-table', 'box-areas-scatter'],
+    parser.add_argument('--statistic', choices=['imgs-objs-table', 'box-areas-scatter', 'plot-images'],
                         help='statistic to print')
     args = parser.parse_args()
 
@@ -112,10 +162,15 @@ if __name__ == '__main__':
     val_df = pd.read_csv(args.val_annotations, names=columns)
     test_df = pd.read_csv(args.test_annotations, names=columns)
 
-    gen = StatisticsGenerator(train_df, val_df, test_df)
+    gen = StatisticsGenerator(train_df, val_df, test_df, args.base_dir)
     if args.statistic == 'imgs-objs-table':
         data = gen.calc_images_and_objects_amounts()
         gen.vis_table(data)
     elif args.statistic == 'box-areas-scatter':
         data = gen.calc_box_areas()
         gen.vis_scatter(data)
+    elif args.statistic == 'plot-images':
+        if args.base_dir is None:
+            parser.error('plot-images requires --base_dir')
+        data = gen.get_images_with_gt_boxes(args.images)
+        gen.vis_images(data)
