@@ -16,6 +16,7 @@ from bokeh.layouts import column, gridplot, row
 from bokeh.models import Select
 import matplotlib.patches as patches
 from IPython.display import display
+import random
 import itertools
 from PIL import Image
 
@@ -91,32 +92,40 @@ class StatisticsGenerator:
         return data
 
     def get_images_with_gt_boxes(self, amount):
-        df = pd.concat(self.all_dfs).sample(amount)
-        image_names = len(set(df['image_name']))
+        df = pd.concat(self.all_dfs)
+        image_names = list(set(df['image_name']))
+        # Amount cannot be higher than amount of images
+        amount = amount if amount <= len(image_names) else len(image_names)
+        image_names = random.sample(image_names, amount)
         imgs = []
         for img_name in image_names:
+            # Choose all annotations of that image
             img_rows = df.loc[df['image_name'] == img_name]
-            boxes = [[x1, y1, x2, y2] for (x1, y1, x2, y2) in df['x1', 'y1', 'x2', 'y2']]
+            # Get boxes
+            boxes = np.array([[x1, y1, x2, y2] for _, (x1, y1, x2, y2) in img_rows[[
+                             'x1', 'y1', 'x2', 'y2']].iterrows()])
+
             img_path = os.path.join(self.base_dir, img_name)
             img = np.asarray(Image.open(img_path).convert('RGBA'))
 
-            img, image_scale = resize_image(img, 300, 300)
-            # Apply resizing to annotations too
+            # Rescale to a larger size than plot, to be able to zoom smoothly
+            img, image_scale = resize_image(img, 1200, 1200)
             boxes = boxes.astype(float) * image_scale
-            draw_boxes(img, boxes, (255, 0, 0, 255), thickness=1)
+            draw_boxes(img, boxes, (255, 0, 0, 255), thickness=2)
             imgs.append(img)
 
         return imgs
 
     def vis_images(self, imgs):
+        if len(imgs) == 0:
+            return
+
         figs = []
         for img in imgs:
             # Flip top down to be displayed correctly in bokeh
             img = img[::-1]
-            print('img shape:', img.shape)
-            height, width, _ = img.shape
-            print('height:', height)
-            print('width:', width)
+            width, height, _ = img.shape
+
             p = figure(x_range=(0, width), y_range=(0, height))
 
             # Hide all axes
@@ -129,7 +138,7 @@ class StatisticsGenerator:
             p.image_rgba([img], x=0, y=0, dw=width, dh=height)
             figs.append(p)
 
-        grid = gridplot(figs, ncols=3, plot_width=300, plot_height=300)
+        grid = gridplot(figs, ncols=3, plot_width=400, plot_height=400)
         show(grid)
 
 
