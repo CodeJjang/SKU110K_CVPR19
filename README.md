@@ -1,5 +1,7 @@
 :new: CVPR 2020 [challenge](#CVPR-2020-Challenge) :new:
 
+This project is under development.  
+You can view some current experiments in this [Google Colab Notebook](https://colab.research.google.com/drive/18cUNvPCMNvyv57FaGE0tMMm-xX1cycHs?usp=sharing).
 # SKU-110K
 #### Eran Goldman* , [Roei Herzig*](https://roeiherz.github.io/) , Aviv Eisenschtat*, [Jacob Goldberger](http://www.eng.biu.ac.il/goldbej/), [Tal Hassner](https://talhassner.github.io/home/)
 
