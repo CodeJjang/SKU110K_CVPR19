@@ -20,6 +20,8 @@ import random
 import itertools
 from PIL import Image
 
+pd.set_option('display.max_columns', None)
+pd.set_option('display.width', 1000)
 
 class StatisticsGenerator:
     """A class responsible for generating statistics about our SKU110K dataset"""
@@ -38,7 +40,7 @@ class StatisticsGenerator:
         display(data_df)
 
     def calc_images_and_objects_amounts(self):
-        columns = ['#imgs', '#objects', 'avg #objects/imgs']
+        columns = ['#imgs', '#objs', 'avg #objs/img']
         columns = pd.MultiIndex.from_tuples(
             [(split, col) for split in self.splits for col in columns])
 
