@@ -18,8 +18,11 @@ import matplotlib.patches as patches
 from IPython.display import display
 import random
 import itertools
-from PIL import Image
+from PIL import Image, ImageFile
 
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+
+# Setting to better display a DF in colab
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 1000)
 
