@@ -29,7 +29,7 @@ from object_detector_retinanet.keras_retinanet import models
 from object_detector_retinanet.keras_retinanet.preprocessing.csv_generator import CSVGenerator
 from object_detector_retinanet.keras_retinanet.utils.predict_iou import predict
 from object_detector_retinanet.keras_retinanet.utils.keras_version import check_keras_version
-from object_detector_retinanet.keras_retinanet.utils.logging import configure_logging
+from object_detector_retinanet.keras_retinanet.utils.logger import configure_logging
 from object_detector_retinanet.utils import image_path, annotation_path, root_dir
 
 def get_session():

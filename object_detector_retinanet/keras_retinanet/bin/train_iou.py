@@ -46,7 +46,7 @@ from object_detector_retinanet.keras_retinanet.utils.anchors import make_shapes_
 from object_detector_retinanet.keras_retinanet.utils.keras_version import check_keras_version
 from object_detector_retinanet.keras_retinanet.utils.model import freeze as freeze_model
 from object_detector_retinanet.keras_retinanet.utils.transform import random_transform_generator
-from object_detector_retinanet.keras_retinanet.utils.logging import configure_logging
+from object_detector_retinanet.keras_retinanet.utils.logger import configure_logging
 from object_detector_retinanet.utils import create_folder, image_path, annotation_path, root_dir, DEBUG_MODE
 
 
