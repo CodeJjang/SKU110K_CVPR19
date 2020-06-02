@@ -103,7 +103,7 @@ if __name__ == '__main__':
     classes = list(set(annotations_df['class']))
 
     # This name will be used to output the folder with all the outputs
-    csv_annotations_name = get_path_fname(args.csv_annotations_path).split('.')
+    csv_annotations_name = os.path.splitext(get_path_fname(args.csv_annotations_path))
     if len(csv_annotations_name) is not 2:
         raise ValueError(
             'The passed --data argument does not lead to a valid file name')
