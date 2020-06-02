@@ -123,6 +123,9 @@ def main(args=None):
     else:
         hard_score_rate = 0.5
     logging.info("hard_score_rate={}".format(hard_score_rate))
+    
+    args.max_annotations = args.max_annotations if args.max_annotations > 0 else None
+    
     # make sure keras is the minimum required version
     check_keras_version()
 
