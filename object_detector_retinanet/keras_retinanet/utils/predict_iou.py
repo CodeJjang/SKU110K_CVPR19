@@ -109,3 +109,4 @@ def predict(
         writer = csv.writer(fl_csv)
         writer.writerows(csv_data_lst)
     logging.info(f'Saved output file at: {res_file}')
+    return res_file

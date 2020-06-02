@@ -31,6 +31,7 @@ from object_detector_retinanet.keras_retinanet.utils.predict_iou import predict
 from object_detector_retinanet.keras_retinanet.utils.keras_version import check_keras_version
 from object_detector_retinanet.keras_retinanet.utils.logger import configure_logging
 from object_detector_retinanet.utils import image_path, annotation_path, root_dir
+from object_detector_retinanet.keras_retinanet.utils.to_coco import print_metrics
 
 def get_session():
     """ Construct a modified tf session.
@@ -151,7 +152,7 @@ def main(args=None):
     model = models.load_model(args.model, backbone_name=args.backbone, convert=args.convert_model, nms=False)
 
     # start prediction
-    predict(
+    dt_annotations_path = predict(
         generator,
         model,
         score_threshold=args.score_threshold,
@@ -160,6 +161,8 @@ def main(args=None):
         base_dir=args.base_dir,
         out_dir=args.out_dir
     )
+    # Print metrics
+    print_metrics(args.annotations, dt_annotations_path)
 
 
 if __name__ == '__main__':
