@@ -59,7 +59,6 @@ class COCO:
 
         for idx, row in self.annotations_df.iterrows():
             entry = self._get_base_coco_dict()
-
             entry['image_id'] = img_list.index(row['image_name'])
             entry['id'] = idx
             xmin, ymin, xmax, ymax = row['x1'], row['y1'], row['x2'], row['y2']
@@ -104,7 +103,7 @@ def get_annotations_columns(data_type):
     if data_type == 'ground-truths':
         columns += ['class', 'image_width', 'image_height']
     elif data_type == 'detections':
-        columns += ['score']
+        columns += ['confidence', 'hard_score']
     else:
         raise ValueError(
             f'Unsupported {data_type} passed to get_annotations_columns')
@@ -146,11 +145,16 @@ if __name__ == '__main__':
                         help='whether it\'s detections or ground truths')
     args = parser.parse_args()
 
+    init_row = 0
+    # Skip first row of detections as it's column names
+    if args.data_type == 'detections':
+        init_row = 1
     columns = get_annotations_columns(args.data_type)
-    annotations_df = pd.read_csv(args.csv_annotations_path, names=columns)
+    annotations_df = pd.read_csv(args.csv_annotations_path, skiprows=init_row, names=columns)
+
 
     # This name will be used to output the folder with all the outputs
-    csv_annotations_name = get_path_fname(args.csv_annotations_path).split('.')
+    csv_annotations_name = os.path.splitext(get_path_fname(args.csv_annotations_path))
     if len(csv_annotations_name) is not 2:
         raise ValueError(
             'The passed --data argument does not lead to a valid file name')
