@@ -162,7 +162,7 @@ def main(args=None):
         out_dir=args.out_dir
     )
     # Print metrics
-    print_metrics(args.annotations, dt_annotations_path)
+    print_metrics(args.annotations, dt_annotations_path, args.max_annotations)
 
 
 if __name__ == '__main__':

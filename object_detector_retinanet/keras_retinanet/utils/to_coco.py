@@ -3,12 +3,14 @@ import os
 import ntpath
 import json
 import pandas as pd
+import numpy as np
 from pycocotools.cocoeval import COCOeval
 from object_detector_retinanet.utils import create_dirpath_if_not_exist, get_last_folder, get_path_fname, rm_dir
 
 
 class JsonCOCO:
     """Helper class to hold COCO json in memory instead of file"""
+
     def __init__(self, list_of_coco_dicts):
         self.list_of_coco_dicts = list_of_coco_dicts
 
@@ -95,7 +97,7 @@ class COCO:
         if self.should_output_file:
             self._assert_dirs()
         print('Starting conversion...')
-        self._gen_annotations()
+        return self._gen_annotations()
 
 
 def get_annotations_columns(data_type):
@@ -110,17 +112,59 @@ def get_annotations_columns(data_type):
     return columns
 
 
-def print_metrics(gt_annotations_path, dt_annotations_path):
+def load_annotations_to_df(csv_annotations_path, data_type, max_gt_annotations=None):
+    init_row = 0
+    # Skip first row of detections as it's column names
+    if data_type == 'detections':
+        init_row = 1
+    columns = get_annotations_columns(data_type)
+    return pd.read_csv(csv_annotations_path, skiprows=init_row, names=columns, nrows=max_gt_annotations)
+
+
+def summarize(eval_results, ap=1, iouThr=None, areaRng='all', maxDets=100):
+    p = eval_results.params
+    iStr = ' {:<18} {} @[ IoU={:<9} | area={:>6s} | maxDets={:>3d} ] = {:0.3f}'
+    titleStr = 'Average Precision' if ap == 1 else 'Average Recall'
+    typeStr = '(AP)' if ap == 1 else '(AR)'
+    iouStr = '{:0.2f}:{:0.2f}'.format(p.iouThrs[0], p.iouThrs[-1]) \
+        if iouThr is None else '{:0.2f}'.format(iouThr)
+
+    aind = [i for i, aRng in enumerate(p.areaRngLbl) if aRng == areaRng]
+    mind = [i for i, mDet in enumerate(p.maxDets) if mDet == maxDets]
+    if ap == 1:
+        # dimension of precision: [TxRxKxAxM]
+        s = eval_results.eval['precision']
+        # IoU
+        if iouThr is not None:
+            t = np.where(iouThr == p.iouThrs)[0]
+            s = s[t]
+        s = s[:, :, :, aind, mind]
+    else:
+        # dimension of recall: [TxKxAxM]
+        s = eval_results.eval['recall']
+        if iouThr is not None:
+            t = np.where(iouThr == p.iouThrs)[0]
+            s = s[t]
+        s = s[:, :, aind, mind]
+    if len(s[s > -1]) == 0:
+        mean_s = -1
+    else:
+        mean_s = np.mean(s[s > -1])
+    print(iStr.format(titleStr, typeStr, iouStr, areaRng, maxDets, mean_s))
+    return mean_s
+
+
+def print_metrics(gt_annotations_path, dt_annotations_path, max_gt_annotations):
 
     # Get GT COCO json
-    gt_columns = get_annotations_columns('ground-truths')
-    gt_annotations_df = pd.read_csv(gt_annotations_path, names=gt_columns)
+    gt_annotations_df = load_annotations_to_df(
+        gt_annotations_path, 'ground-truths', max_gt_annotations)
     gt_json = COCO(gt_annotations_path, '',
                    gt_annotations_df, needs_score=False, should_output_file=False).convert()
 
     # Get detections COCO json
-    dt_columns = get_annotations_columns('detections')
-    dt_annotations_df = pd.read_csv(dt_annotations_path, names=dt_columns)
+    dt_annotations_df = load_annotations_to_df(
+        dt_annotations_path, 'detections')
     dt_json = COCO(dt_annotations_path, '',
                    dt_annotations_df, needs_score=True, should_output_file=False).convert()
 
@@ -129,12 +173,16 @@ def print_metrics(gt_annotations_path, dt_annotations_path):
 
     # running evaluation
     cocoEval = COCOeval(gt_coco_format, dt_coco_format, iouType='bbox')
-    coco = COCOeval(gt_json, dt_json, iouType="bbox")
-    coco.params.areaRng = [[0, 100000000]]
-    coco.params.areaRngLbl = ['all']
-    coco.params.maxDets = [300]
-    coco.evaluate()
-    coco.accumulate()
+    cocoEval.params.areaRng = [[0, 100000000]]
+    cocoEval.params.areaRngLbl = ['all']
+    cocoEval.params.maxDets = [300]
+    cocoEval.evaluate()
+    cocoEval.accumulate()
+    summarize(cocoEval, ap=1, maxDets=300)
+    summarize(cocoEval, ap=1, maxDets=300, iouThr=0.5)
+    summarize(cocoEval, ap=1, maxDets=300, iouThr=0.75)
+    summarize(cocoEval, ap=0, maxDets=300)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -145,16 +193,12 @@ if __name__ == '__main__':
                         help='whether it\'s detections or ground truths')
     args = parser.parse_args()
 
-    init_row = 0
-    # Skip first row of detections as it's column names
-    if args.data_type == 'detections':
-        init_row = 1
-    columns = get_annotations_columns(args.data_type)
-    annotations_df = pd.read_csv(args.csv_annotations_path, skiprows=init_row, names=columns)
-
+    annotations_df = load_annotations_to_df(
+        args.csv_annotations_path, args.data_type)
 
     # This name will be used to output the folder with all the outputs
-    csv_annotations_name = os.path.splitext(get_path_fname(args.csv_annotations_path))
+    csv_annotations_name = os.path.splitext(
+        get_path_fname(args.csv_annotations_path))
     if len(csv_annotations_name) is not 2:
         raise ValueError(
             'The passed --data argument does not lead to a valid file name')
