@@ -49,7 +49,7 @@ def aggregate_gaussians(sub_range, shape, width, height, confidence, boxes):
 class DuplicateMerger(object):
     visualizer = None
 
-    def filter_duplicate_candidates(self, data, image):
+    def filter_duplicate_candidates(self, data, image_shape):
 
         Params.box_size_factor = 0.5
         Params.min_box_size = 5
@@ -57,7 +57,7 @@ class DuplicateMerger(object):
         Params.min_k = 0
 
         # TODO time optimization: split into initial clusters using gaussian information rather than heatmap contours
-        heat_map = numpy.zeros(shape=[image.shape[0], image.shape[1], 1], dtype=numpy.float64)
+        heat_map = numpy.zeros(shape=[image_shape[0], image_shape[1], 1], dtype=numpy.float64)
         original_detection_centers = self.shrink_boxes(data, heat_map)
 
         cv2.normalize(heat_map, heat_map, 0, 255, cv2.NORM_MINMAX)
@@ -65,7 +65,7 @@ class DuplicateMerger(object):
         h2, heat_map = cv2.threshold(heat_map, 4, 255, cv2.THRESH_TOZERO)
         contours = cv2.findContours(numpy.ndarray.copy(heat_map), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
-        candidates = self.find_new_candidates(contours, heat_map, data, original_detection_centers, image)
+        candidates = self.find_new_candidates(contours, heat_map, data, original_detection_centers)
         candidates = self.map_original_boxes_to_new_boxes(candidates, original_detection_centers)
 
         # TODO time optimization: parallelize contours/clusters resolvers.
@@ -107,7 +107,7 @@ class DuplicateMerger(object):
 
         return filtered_data
 
-    def find_new_candidates(self, contours, heat_map, data, original_detection_centers, image):
+    def find_new_candidates(self, contours, heat_map, data, original_detection_centers):
         candidates = []
         for contour_i, contour in enumerate(contours[0]):
             contour_bounding_rect = cv2.boundingRect(contour)
@@ -145,8 +145,8 @@ class DuplicateMerger(object):
                         logging.warning(f'{n}, {k},  k<=Params.min_k or EM failed')
                         self.perform_nms(candidates, contour_i, curr_data)
                     else:  # successful EM
-                        cov, mu, num, roi = self.remove_redundant(contour_bbox, cov, k, mu, image, sub_heat_map)
-                        self.set_candidates(candidates, cov, heat_map, mu, num, offset, roi, sub_heat_map)
+                        cov, mu, num = self.remove_redundant(contour_bbox, cov, k, mu, sub_heat_map)
+                        self.set_candidates(candidates, cov, heat_map, mu, num, offset, sub_heat_map)
                 elif (k == n):
                     pass
                     # print n, k, ' k==n'
@@ -154,7 +154,7 @@ class DuplicateMerger(object):
 
         return candidates
 
-    def set_candidates(self, candidates, cov, heat_map, mu, num, offset, roi, sub_heat_map):
+    def set_candidates(self, candidates, cov, heat_map, mu, num, offset, sub_heat_map):
         for source_i, ((_x, _y), c) in enumerate(zip(mu, cov)):
             sigmax = numpy.sqrt(c[0, 0])
             sigmay = numpy.sqrt(c[1, 1])
@@ -172,11 +172,9 @@ class DuplicateMerger(object):
                                    'score': heat_map[abs_box[BOX.Y1]:abs_box[BOX.Y2],
                                             abs_box[BOX.X1]:abs_box[BOX.X2]].max()})
 
-    def remove_redundant(self, contour_bbox, cov, k, mu, image, sub_heat_map):
+    def remove_redundant(self, contour_bbox, cov, k, mu, sub_heat_map):
         mu = mu.round().astype(numpy.int32)
 
-        roi = image[contour_bbox[BOX.Y1]:contour_bbox[BOX.Y2],
-              contour_bbox[BOX.X1]:contour_bbox[BOX.X2]].copy()
         cnts = []
         for source_i, ((_x, _y), c) in enumerate(zip(mu, cov)):
             sigmax = numpy.sqrt(c[0, 0])
@@ -248,7 +246,7 @@ class DuplicateMerger(object):
             mu = mu[~mask]
             cov = cov[~mask]
         num = mu.shape[0]
-        return cov, mu, num, roi
+        return cov, mu, num
 
     def perform_nms(self, candidates, contour_i, curr_data):
 
@@ -360,7 +358,7 @@ class DuplicateMerger(object):
         return new_candidates
 
 
-def merge_detections(root_dir, image_name, results):
+def merge_detections(root_dir, image_name, image_shape, results):
 #    project = 'SKU_dataset'
     result_df = pandas.DataFrame()
     result_df['x1'] = results[:, 0].astype(int)
@@ -376,16 +374,13 @@ def merge_detections(root_dir, image_name, results):
 
     result_df.reset_index()
     result_df['id'] = result_df.index
-    pixel_data = None
     duplicate_merger = DuplicateMerger()
     duplicate_merger.multiprocess = False
     duplicate_merger.compression_factor = 1
 #    project = result_df['project'].iloc[0]
     image_name = result_df['image_name'].iloc[0]
-    if pixel_data is None:
-        pixel_data = read_image_bgr(os.path.join(root_dir,  image_name))
 
-    filtered_data = duplicate_merger.filter_duplicate_candidates(result_df, pixel_data)
+    filtered_data = duplicate_merger.filter_duplicate_candidates(result_df, image_shape)
     return filtered_data
 
 
