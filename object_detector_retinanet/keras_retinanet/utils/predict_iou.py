@@ -92,7 +92,7 @@ def predict(
             csv_data_lst.append(row)
 
         if save_path is not None:
-            save_path += timestamp
+            save_path += str(timestamp)
             create_folder(save_path)
 
             draw_annotations(raw_image, generator.load_annotations(i), label_to_name=generator.label_to_name)
