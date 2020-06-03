@@ -153,7 +153,7 @@ if __name__ == '__main__':
     parser.add_argument('--base_dir', type=str, required=False,
                         help='base directory for images')
     parser.add_argument('--images', type=int, required=False, default=6,
-                        help='amount of images to display in --statistic plot-images')
+                        help='amount of images to display in --statistic plot-gt-images')
     parser.add_argument('--train-annotations', type=str,
                         help='csv train annotations file full path')
     parser.add_argument('--val-annotations', type=str,
@@ -162,7 +162,7 @@ if __name__ == '__main__':
                         help='csv test annotations file full path')
     parser.add_argument('--colab', action='store_true', default=False,
                         help='whether we are running in colab')
-    parser.add_argument('--statistic', choices=['imgs-objs-table', 'box-areas-scatter', 'plot-images'],
+    parser.add_argument('--statistic', choices=['imgs-objs-table', 'box-areas-scatter', 'plot-gt-images'],
                         help='statistic to print')
     args = parser.parse_args()
 
@@ -183,8 +183,8 @@ if __name__ == '__main__':
     elif args.statistic == 'box-areas-scatter':
         data = gen.calc_box_areas()
         gen.vis_scatter(data)
-    elif args.statistic == 'plot-images':
+    elif args.statistic == 'plot-gt-images':
         if args.base_dir is None:
-            parser.error('plot-images requires --base_dir')
+            parser.error('plot-gt-images requires --base_dir')
         data = gen.get_images_with_gt_boxes(args.images)
         gen.vis_images(data)
