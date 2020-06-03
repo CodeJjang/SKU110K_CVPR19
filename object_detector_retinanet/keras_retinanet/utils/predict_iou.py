@@ -92,13 +92,14 @@ def predict(
             csv_data_lst.append(row)
 
         if save_path is not None:
+            save_path += timestamp
             create_folder(save_path)
 
             draw_annotations(raw_image, generator.load_annotations(i), label_to_name=generator.label_to_name)
             draw_detections(raw_image, np.asarray(filtered_boxes), np.asarray(filtered_scores),
                             np.asarray(filtered_labels), color=(0, 0, 255))
 
-            cv2.imwrite(os.path.join(save_path, '{}.png'.format(i)), raw_image)
+            cv2.imwrite(os.path.join(save_path, '{}_{}.png'.format(image_name, i)), raw_image)
 
         # copy detections to all_detections
         for label in range(generator.num_classes()):
