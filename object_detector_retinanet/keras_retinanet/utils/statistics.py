@@ -121,7 +121,22 @@ class StatisticsGenerator:
 
         return imgs
 
-    def vis_images(self, imgs):
+    def get_images_from_basedir(self, amount):
+        image_names = os.listdir(self.base_dir)
+        # Amount cannot be higher than amount of images
+        amount = amount if amount <= len(image_names) else len(image_names)
+        image_names = random.sample(image_names, amount)
+        imgs = []
+        for img_name in image_names:
+            img_path = os.path.join(self.base_dir, img_name)
+            img = np.asarray(Image.open(img_path).convert('RGBA'))
+
+            # Rescale to a larger size than plot, to be able to zoom smoothly
+            imgs.append(img)
+
+        return imgs
+
+    def vis_images(self, imgs, ncols=3, plot_width=400, plot_height=400):
         if len(imgs) == 0:
             return
 
@@ -143,7 +158,7 @@ class StatisticsGenerator:
             p.image_rgba([img], x=0, y=0, dw=width, dh=height)
             figs.append(p)
 
-        grid = gridplot(figs, ncols=3, plot_width=400, plot_height=400)
+        grid = gridplot(figs, ncols=ncols, plot_width=plot_width, plot_height=plot_height)
         show(grid)
 
 
@@ -153,7 +168,7 @@ if __name__ == '__main__':
     parser.add_argument('--base_dir', type=str, required=False,
                         help='base directory for images')
     parser.add_argument('--images', type=int, required=False, default=6,
-                        help='amount of images to display in --statistic plot-gt-images')
+                        help='amount of images to display in --statistic plot-gt-images or plot-dt-images')
     parser.add_argument('--train-annotations', type=str,
                         help='csv train annotations file full path')
     parser.add_argument('--val-annotations', type=str,
@@ -162,7 +177,7 @@ if __name__ == '__main__':
                         help='csv test annotations file full path')
     parser.add_argument('--colab', action='store_true', default=False,
                         help='whether we are running in colab')
-    parser.add_argument('--statistic', choices=['imgs-objs-table', 'box-areas-scatter', 'plot-gt-images'],
+    parser.add_argument('--statistic', choices=['imgs-objs-table', 'box-areas-scatter', 'plot-gt-images', 'plot-dt-images'],
                         help='statistic to print')
     args = parser.parse_args()
 
@@ -188,3 +203,8 @@ if __name__ == '__main__':
             parser.error('plot-gt-images requires --base_dir')
         data = gen.get_images_with_gt_boxes(args.images)
         gen.vis_images(data)
+    elif args.statistic == 'plot-dt-images':
+        if args.base_dir is None:
+            parser.error('plot-dt-images requires --base_dir')
+        data = gen.get_images_from_basedir(args.images)
+        gen.vis_images(data, 2, 600, 600)
