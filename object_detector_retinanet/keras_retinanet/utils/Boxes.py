@@ -44,6 +44,7 @@ def reshape_vector(ndarr):
     return ndarr
 
 def extract_boxes_from_edge_boxes(edge_boxes):
+    """Convert (x,y,w,h) boxes to (xmin,ymin,xmax,ymax) boxes"""
     edge_boxes = reshape_vector(edge_boxes)
 
     boxes = edge_boxes.copy()

@@ -14,6 +14,7 @@ from object_detector_retinanet.keras_retinanet.utils.Boxes import BOX, extract_b
 from object_detector_retinanet.keras_retinanet.utils.CollapsingMoG import collapse
 from object_detector_retinanet.keras_retinanet.utils.image import read_image_bgr
 
+
 class Params:
     box_size_factor = 0.3
     min_box_size = 2
@@ -35,13 +36,17 @@ def gaussian_blur(w, h):
 
 
 def aggregate_gaussians(sub_range, shape, width, height, confidence, boxes):
+    """Creates gaussians for each detection box and aggregates the gaussians in the heatmap, in the box locations"""
     shape = [int(x) for x in shape]
     heat_map = numpy.zeros(shape=shape, dtype=numpy.float64)
     for i in sub_range:
         curr_gaussian = gaussian_blur(width[i], height[i])
-        cv2.normalize(curr_gaussian, curr_gaussian, 0, confidence[i], cv2.NORM_MINMAX)
+        # Normalize gaussian values according to box confidence (min max)
+        cv2.normalize(curr_gaussian, curr_gaussian, 0,
+                      confidence[i], cv2.NORM_MINMAX)
         box = boxes[:, i]
-        shape = heat_map[box[BOX.Y1]:box[BOX.Y2], box[BOX.X1]:box[BOX.X2]].shape
+        shape = heat_map[box[BOX.Y1]:box[BOX.Y2],
+                         box[BOX.X1]:box[BOX.X2]].shape
         heat_map[box[BOX.Y1]:box[BOX.Y2], box[BOX.X1]:box[BOX.X2]] += curr_gaussian.reshape(shape)
     return heat_map
 
@@ -57,16 +62,23 @@ class DuplicateMerger(object):
         Params.min_k = 0
 
         # TODO time optimization: split into initial clusters using gaussian information rather than heatmap contours
-        heat_map = numpy.zeros(shape=[image_shape[0], image_shape[1], 1], dtype=numpy.float64)
+        heat_map = numpy.zeros(
+            shape=[image_shape[0], image_shape[1], 1], dtype=numpy.float64)
         original_detection_centers = self.shrink_boxes(data, heat_map)
 
         cv2.normalize(heat_map, heat_map, 0, 255, cv2.NORM_MINMAX)
+        # Just performs ABS and converts to 8bit type (0-255)
         heat_map = cv2.convertScaleAbs(heat_map)
+        # Everything below 4 becomes 0
         h2, heat_map = cv2.threshold(heat_map, 4, 255, cv2.THRESH_TOZERO)
-        contours = cv2.findContours(numpy.ndarray.copy(heat_map), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
-        candidates = self.find_new_candidates(contours, heat_map, data, original_detection_centers)
-        candidates = self.map_original_boxes_to_new_boxes(candidates, original_detection_centers)
+        # Finds contours, returns only external contours in case of contour inside contour
+        contours = cv2.findContours(numpy.ndarray.copy(
+            heat_map), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        candidates = self.find_new_candidates(
+            contours, heat_map, data, original_detection_centers)
+        candidates = self.map_original_boxes_to_new_boxes(
+            candidates, original_detection_centers)
 
         # TODO time optimization: parallelize contours/clusters resolvers.
         # TODO time optimization: convert numpy to tensorflow/keras
@@ -110,43 +122,52 @@ class DuplicateMerger(object):
     def find_new_candidates(self, contours, heat_map, data, original_detection_centers):
         candidates = []
         for contour_i, contour in enumerate(contours[0]):
+            # Get bounding box (horizontal) wrapping contour -> x, y, w, h
             contour_bounding_rect = cv2.boundingRect(contour)
 
-            contour_bbox = extract_boxes_from_edge_boxes(numpy.array(contour_bounding_rect))[0]
+            contour_bbox = extract_boxes_from_edge_boxes(
+                numpy.array(contour_bounding_rect))[0]  # Convert box format
             box_width = contour_bbox[BOX.X2] - contour_bbox[BOX.X1]
             box_height = contour_bbox[BOX.Y2] - contour_bbox[BOX.Y1]
             contour_area = cv2.contourArea(contour)
             offset = contour_bbox[0:2]
             mu = None
             cov = None
-            original_indexes = self.get_contour_indexes(contour, contour_bbox, original_detection_centers['x'],
-                                                        original_detection_centers['y'])
-        
+            original_indexes = self.get_intersecting_contour_indices(contour, contour_bbox,
+                                                                     original_detection_centers['x'], original_detection_centers['y'])
+
+            # Count amount of intersecting boxes with current contour
             n = original_indexes.sum()
             if n > 0 and box_width > 3 and box_height > 3:
                 curr_data = data[original_indexes]
-                w = (curr_data['x2'] - curr_data['x1']) * Params.box_size_factor
-                h = (curr_data['y2'] - curr_data['y1']) * Params.box_size_factor
+                w = (curr_data['x2'] - curr_data['x1']) * \
+                    Params.box_size_factor
+                h = (curr_data['y2'] - curr_data['y1']) * \
+                    Params.box_size_factor
                 areas = w * h
                 median_area = areas.median()
                 if median_area > 0:
-                    approximate_number_of_objects = min(numpy.round(contour_area / median_area), 100)
+                    approximate_number_of_objects = min(
+                        numpy.round(contour_area / median_area), 100)
                 else:
                     approximate_number_of_objects = 0
                 sub_heat_map = numpy.copy(heat_map[contour_bbox[BOX.Y1]:contour_bbox[BOX.Y2],
-                                          contour_bbox[BOX.X1]:contour_bbox[BOX.X2]])
+                                                   contour_bbox[BOX.X1]:contour_bbox[BOX.X2]])
                 k = max(1, int(approximate_number_of_objects))
-                # print n,k
+                # If the approximate number of objects is less than n (then we can reduce it) and greater than 1
                 if k >= 1 and n > k:
                     if k > Params.min_k:
                         beta, mu, cov = collapse(original_detection_centers[original_indexes].copy(), k, offset,
                                                  max_iter=20, epsilon=1e-10)
                     if mu is None:  # k<=Params.min_k or EM failed
-                        logging.warning(f'{n}, {k},  k<=Params.min_k or EM failed')
+                        logging.warning(
+                            f'{n}, {k},  k<=Params.min_k or EM failed')
                         self.perform_nms(candidates, contour_i, curr_data)
                     else:  # successful EM
-                        cov, mu, num = self.remove_redundant(contour_bbox, cov, k, mu, sub_heat_map)
-                        self.set_candidates(candidates, cov, heat_map, mu, num, offset, sub_heat_map)
+                        cov, mu, num = self.remove_redundant(
+                            contour_bbox, cov, k, mu, sub_heat_map)
+                        self.set_candidates(
+                            candidates, cov, heat_map, mu, num, offset, sub_heat_map)
                 elif (k == n):
                     pass
                     # print n, k, ' k==n'
@@ -170,7 +191,7 @@ class DuplicateMerger(object):
             if box_width > Params.min_box_size and box_height > Params.min_box_size:
                 candidates.append({'box': abs_box, 'original_detection_ids': [],
                                    'score': heat_map[abs_box[BOX.Y1]:abs_box[BOX.Y2],
-                                            abs_box[BOX.X1]:abs_box[BOX.X2]].max()})
+                                                     abs_box[BOX.X1]:abs_box[BOX.X2]].max()})
 
     def remove_redundant(self, contour_bbox, cov, k, mu, sub_heat_map):
         mu = mu.round().astype(numpy.int32)
@@ -180,19 +201,23 @@ class DuplicateMerger(object):
             sigmax = numpy.sqrt(c[0, 0])
             sigmay = numpy.sqrt(c[1, 1])
 
-            chi_square_val = numpy.math.sqrt(chi2.ppf(Params.ellipsoid_thresh, 2))
+            chi_square_val = numpy.math.sqrt(
+                chi2.ppf(Params.ellipsoid_thresh, 2))
             retval, eigenvalues, eigenvectors = cv2.eigen(c)
             angle = numpy.math.atan2(eigenvectors[0, 1], eigenvectors[0, 0])
             if angle < 0:
                 angle += 2 * numpy.math.pi
             angle = 180 * angle / numpy.math.pi
 
-            half_major_axis_size = chi_square_val * numpy.math.sqrt(eigenvalues[1])
-            half_minor_axis_size = chi_square_val * numpy.math.sqrt(eigenvalues[0])
+            half_major_axis_size = chi_square_val * \
+                numpy.math.sqrt(eigenvalues[1])
+            half_minor_axis_size = chi_square_val * \
+                numpy.math.sqrt(eigenvalues[0])
 
             local_m = numpy.zeros_like(sub_heat_map)
             poly = cv2.ellipse2Poly((int(round(_x)), int(round(_y))),
-                                    (int(round(half_minor_axis_size)), int(round(half_major_axis_size))),
+                                    (int(round(half_minor_axis_size)),
+                                     int(round(half_major_axis_size))),
                                     -int(round(angle)), 0, 360, 15)
             ellipse_mask = cv2.fillPoly(local_m, [poly], (1, 1, 1))
             contours = cv2.findContours(ellipse_mask.copy(), cv2.RETR_EXTERNAL,
@@ -210,8 +235,12 @@ class DuplicateMerger(object):
                     continue
                 cnt_i = cnts[i]
                 cnt_j = cnts[j]
-                ct_i_to_pt_j = -cv2.pointPolygonTest(cnt_i, (mu[j][0], mu[j][1]), measureDist=True)
-                ct_j_to_pt_i = -cv2.pointPolygonTest(cnt_j, (mu[i][0], mu[i][1]), measureDist=True)
+                ct_i_to_pt_j = - \
+                    cv2.pointPolygonTest(
+                        cnt_i, (mu[j][0], mu[j][1]), measureDist=True)
+                ct_j_to_pt_i = - \
+                    cv2.pointPolygonTest(
+                        cnt_j, (mu[i][0], mu[i][1]), measureDist=True)
                 if ct_i_to_pt_j <= 0 or ct_j_to_pt_i <= 0:
                     scaled_distances[i, j] = -numpy.inf
                 else:
@@ -219,7 +248,8 @@ class DuplicateMerger(object):
                     ct_i_to_ct_j = ct_i_to_pt_j - pt_dist + ct_j_to_pt_i
                     scaled_distances[i, j] = ct_i_to_ct_j
         scaled_distances = numpy.triu(scaled_distances)
-        i_s, j_s = numpy.unravel_index(numpy.argsort(scaled_distances, axis=None), scaled_distances.shape)
+        i_s, j_s = numpy.unravel_index(numpy.argsort(
+            scaled_distances, axis=None), scaled_distances.shape)
         to_remove = []
         for i, j in zip(i_s, j_s):
             if scaled_distances[i, j] >= 0:
@@ -253,15 +283,18 @@ class DuplicateMerger(object):
         nms_data = perform_nms_on_image_dataframe(curr_data, 0.3)
 
         for sub_ind, row in nms_data.iterrows():
-            curr_box = numpy.asarray([row['x1'], row['y1'], row['x2'], row['y2']])
+            curr_box = numpy.asarray(
+                [row['x1'], row['y1'], row['x2'], row['y2']])
             box_width = curr_box[BOX.X2] - curr_box[BOX.X1]
             box_height = curr_box[BOX.Y2] - curr_box[BOX.Y1]
             if box_width > Params.min_box_size and box_height > Params.min_box_size:
-                candidates.append({'box': curr_box, 'original_detection_ids': []})
+                candidates.append(
+                    {'box': curr_box, 'original_detection_ids': []})
 
-    def get_contour_indexes(self, contour, contour_bbox, x, y):
+    def get_intersecting_contour_indices(self, contour, contour_bbox, x, y):
+        """Check which boxes (using original indices) are intersecting with the contour"""
         original_indexes = (contour_bbox[BOX.X1] <= x) & (x <= contour_bbox[BOX.X2]) & (
-                contour_bbox[BOX.Y1] <= y) & (y <= contour_bbox[BOX.Y2])
+            contour_bbox[BOX.Y1] <= y) & (y <= contour_bbox[BOX.Y2])
         return original_indexes
 
     def local_box_offset(self, offset, box):
@@ -272,8 +305,8 @@ class DuplicateMerger(object):
         box_offset[BOX.Y2] = box[BOX.Y2] + offset[1]
         return box_offset
 
-
     def shrink_boxes(self, data, heat_map):
+        """Calculates for each box a smaller box inside it, and then heatmap of gaussians for all those smaller boxes"""
         x1 = data['x1']
         y1 = data['y1']
         x2 = data['x2']
@@ -286,9 +319,12 @@ class DuplicateMerger(object):
         original_detection_centers = original_detection_centers_x.to_frame('x').join(
             original_detection_centers_y.to_frame('y'))
 
-        boxes = x1.to_frame('x1').join(x2.to_frame('x2')).join(y1.to_frame('y1')).join(y2.to_frame('y2'))
-        w_shift = ((width * (1 - Params.box_size_factor)) / 2.).astype(numpy.int32)
-        h_shift = ((height * (1 - Params.box_size_factor)) / 2.).astype(numpy.int32)
+        boxes = x1.to_frame('x1').join(x2.to_frame('x2')).join(
+            y1.to_frame('y1')).join(y2.to_frame('y2'))
+        w_shift = ((width * (1 - Params.box_size_factor)) /
+                   2.).astype(numpy.int32)
+        h_shift = ((height * (1 - Params.box_size_factor)) /
+                   2.).astype(numpy.int32)
 
         boxes.x1 += w_shift
         boxes.x2 -= w_shift
@@ -299,22 +335,31 @@ class DuplicateMerger(object):
         height = boxes.y2 - boxes.y1
         confidence = data['confidence']
 
-        original_detection_centers = original_detection_centers.join(boxes.x1.to_frame('left_x'))
-        original_detection_centers = original_detection_centers.join(boxes.x2.to_frame('right_x'))
-        original_detection_centers = original_detection_centers.join(boxes.y1.to_frame('top_y'))
-        original_detection_centers = original_detection_centers.join(boxes.y2.to_frame('bottom_y'))
-        original_detection_centers = original_detection_centers.join((width / 2.).to_frame('sigma_x'))
-        original_detection_centers = original_detection_centers.join((height / 2.).to_frame('sigma_y'))
-        original_detection_centers = original_detection_centers.join(confidence.to_frame('confidence'))
+        original_detection_centers = original_detection_centers.join(
+            boxes.x1.to_frame('left_x'))
+        original_detection_centers = original_detection_centers.join(
+            boxes.x2.to_frame('right_x'))
+        original_detection_centers = original_detection_centers.join(
+            boxes.y1.to_frame('top_y'))
+        original_detection_centers = original_detection_centers.join(
+            boxes.y2.to_frame('bottom_y'))
+        original_detection_centers = original_detection_centers.join(
+            (width / 2.).to_frame('sigma_x'))
+        original_detection_centers = original_detection_centers.join(
+            (height / 2.).to_frame('sigma_y'))
+        original_detection_centers = original_detection_centers.join(
+            confidence.to_frame('confidence'))
 
         confidence = numpy.array(confidence)
         width = numpy.asarray(width)
         height = numpy.asarray(height)
-        boxes = numpy.asarray([boxes.x1.values, boxes.y1.values, boxes.x2.values, boxes.y2.values], dtype=numpy.int32)
+        boxes = numpy.asarray([boxes.x1.values, boxes.y1.values,
+                               boxes.x2.values, boxes.y2.values], dtype=numpy.int32)
 
         compression_factor = self.compression_factor
         orig_shape = heat_map.shape
-        shape = (orig_shape[0] / compression_factor, orig_shape[1] / compression_factor, orig_shape[2])
+        shape = (orig_shape[0] / compression_factor,
+                 orig_shape[1] / compression_factor, orig_shape[2])
         small_heat_map = heat_map
         if compression_factor > 1:
             width /= compression_factor
@@ -333,20 +378,23 @@ class DuplicateMerger(object):
         small_heat_map += aggregate_gaussians(sub_range=range(0, data.shape[0]), shape=shape, width=width,
                                               height=height, confidence=confidence, boxes=boxes)
         if compression_factor > 1:
-            heat_map += numpy.expand_dims(cv2.resize(small_heat_map, (orig_shape[1], orig_shape[0])), axis=2)
+            heat_map += numpy.expand_dims(cv2.resize(small_heat_map,
+                                                     (orig_shape[1], orig_shape[0])), axis=2)
         return original_detection_centers
 
     def map_original_boxes_to_new_boxes(self, candidates, original_detection_centers):
         x = original_detection_centers['x']
         y = original_detection_centers['y']
-        matched_indexes = numpy.ndarray(shape=original_detection_centers.shape[0], dtype=numpy.bool)
+        matched_indexes = numpy.ndarray(
+            shape=original_detection_centers.shape[0], dtype=numpy.bool)
         matched_indexes.fill(False)
         for candidate in candidates:
             box = candidate['box']
             original_indexes = (box[BOX.X1] <= x) & (x <= box[BOX.X2]) & (box[BOX.Y1] <= y) & (
-                    y <= box[BOX.Y2]) & ~matched_indexes
+                y <= box[BOX.Y2]) & ~matched_indexes
             matched_indexes[original_indexes] = True
-            candidate['original_detection_ids'] = list(original_indexes[original_indexes].keys())
+            candidate['original_detection_ids'] = list(
+                original_indexes[original_indexes].keys())
 
         new_candidates = {}
         i = 0
@@ -359,7 +407,7 @@ class DuplicateMerger(object):
 
 
 def merge_detections(root_dir, image_name, image_shape, results):
-#    project = 'SKU_dataset'
+    #    project = 'SKU_dataset'
     result_df = pandas.DataFrame()
     result_df['x1'] = results[:, 0].astype(int)
     result_df['y1'] = results[:, 1].astype(int)
@@ -380,7 +428,8 @@ def merge_detections(root_dir, image_name, image_shape, results):
 #    project = result_df['project'].iloc[0]
     image_name = result_df['image_name'].iloc[0]
 
-    filtered_data = duplicate_merger.filter_duplicate_candidates(result_df, image_shape)
+    filtered_data = duplicate_merger.filter_duplicate_candidates(
+        result_df, image_shape)
     return filtered_data
 
 
