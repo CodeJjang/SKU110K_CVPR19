@@ -143,18 +143,22 @@ def create_callbacks(model, training_model, prediction_model, validation_generat
     callbacks = []
 
     tensorboard_callback = None
+    tensorboard_update_freq = 'epoch'
+    if args.tensorboard_update_freq is not None:
+        tensorboard_update_freq = args.tensorboard_update_freq
 
     if args.tensorboard_dir:
         tensorboard_callback = keras.callbacks.TensorBoard(
             log_dir=args.tensorboard_dir,
             histogram_freq=0,
             batch_size=args.batch_size,
-            write_graph=True,
+            write_graph=False,
             write_grads=False,
             write_images=False,
             embeddings_freq=0,
             embeddings_layer_names=None,
-            embeddings_metadata=None
+            embeddings_metadata=None,
+            update_freq=tensorboard_update_freq
         )
         callbacks.append(tensorboard_callback)
 
@@ -354,7 +358,8 @@ def parse_args(args):
                         help='Path to store images classes cache (for faster loading when images are stored in the cloud)',
                         default=args_images_cls_cache)
     parser.add_argument('--max-annotations', help='Trim annotations to max number (easier debugging)', type=int)
-
+    parser.add_argument('--tensorboard-update-freq', help='Number of batches frequency to update tensorboard', type=int)
+    
     return check_args(parser.parse_args(args))
 
 
