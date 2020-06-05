@@ -54,7 +54,7 @@ def aggregate_gaussians(sub_range, shape, width, height, confidence, boxes):
 class DuplicateMerger(object):
     visualizer = None
 
-    def filter_duplicate_candidates(self, data, image_shape):
+    def filter_duplicate_candidates(self, data, image_shape, hard_score_rate):
 
         Params.box_size_factor = 0.5
         Params.min_box_size = 5
@@ -89,7 +89,7 @@ class DuplicateMerger(object):
             label = candidate['original_detection_ids']
             original_detections = data.ix[label]
             original_detections[
-                'avg_score'] = 0.5 * original_detections.confidence + 0.5 * original_detections.hard_score
+                'avg_score'] = hard_score_rate * original_detections.confidence + hard_score_rate * original_detections.hard_score
             best_detection_id = original_detections.avg_score.argmax()
             # best_detection_id = original_detections.confidence.argmax()
             # best_detection_id = original_detections.hard_score.argmax()
@@ -413,7 +413,7 @@ class DuplicateMerger(object):
         return new_candidates
 
 
-def merge_detections(root_dir, image_name, image_shape, results):
+def merge_detections(root_dir, image_name, image_shape, results, hard_score_rate):
     #    project = 'SKU_dataset'
     result_df = pandas.DataFrame()
     result_df['x1'] = results[:, 0].astype(int)
@@ -436,7 +436,7 @@ def merge_detections(root_dir, image_name, image_shape, results):
     image_name = result_df['image_name'].iloc[0]
 
     filtered_data = duplicate_merger.filter_duplicate_candidates(
-        result_df, image_shape)
+        result_df, image_shape, hard_score_rate)
     return filtered_data
 
 

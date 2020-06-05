@@ -80,7 +80,7 @@ def predict(
         results = np.concatenate(
             [image_boxes, np.expand_dims(image_scores, axis=1), np.expand_dims(image_hard_scores, axis=1),
              np.expand_dims(image_labels, axis=1)], axis=1)
-        filtered_data = EmMerger.merge_detections(base_dir, image_name, raw_image.shape, results)
+        filtered_data = EmMerger.merge_detections(base_dir, image_name, raw_image.shape, results, hard_score_rate)
         filtered_boxes = []
         filtered_scores = []
         filtered_labels = []
