@@ -178,11 +178,11 @@ def print_metrics(gt_annotations_path, dt_annotations_path, max_gt_annotations):
     cocoEval.params.maxDets = [300]
     cocoEval.evaluate()
     cocoEval.accumulate()
-    summarize(cocoEval, ap=1, maxDets=300)
-    summarize(cocoEval, ap=1, maxDets=300, iouThr=0.5)
-    summarize(cocoEval, ap=1, maxDets=300, iouThr=0.75)
-    summarize(cocoEval, ap=0, maxDets=300)
-
+    ap_all = summarize(cocoEval, ap=1, maxDets=300)
+    ap_easy = summarize(cocoEval, ap=1, maxDets=300, iouThr=0.5)
+    ap_strict = summarize(cocoEval, ap=1, maxDets=300, iouThr=0.75)
+    ar_all = summarize(cocoEval, ap=0, maxDets=300)
+    return ap_all, ap_easy, ap_strict, ar_all
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
