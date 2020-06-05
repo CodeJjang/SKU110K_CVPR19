@@ -33,13 +33,13 @@ def agglomerative_init(alpha, mu, covariance, n, k):
     covariance_temp = numpy.vstack(
         [covariance, numpy.zeros(shape=[n - k, covariance.shape[1], covariance.shape[2]], dtype=covariance.dtype)])
     alpha_temp = numpy.hstack([alpha, numpy.zeros(shape=(n - k), dtype=alpha.dtype)])
-    distances = scipy.spatial.distance.cdist(mu_temp, mu_temp)
+    distances = scipy.spatial.distance.cdist(mu_temp, mu_temp) # Compute distance between each pair of the two collections of inputs
     distances = numpy.triu(distances)
     distances = numpy.nan_to_num(distances)
     distances[distances == 0] = numpy.inf
     deleted = []
     for l in range(n, 2 * n - k):
-        i, j = numpy.unravel_index(numpy.argmin(distances), distances.shape)
+        i, j = numpy.unravel_index(numpy.argmin(distances), distances.shape) # Give the unraveled (unflattened) multi-dim index of the min distance
 
         alpha_ij = alpha_temp[i] + alpha_temp[j]
         mu_ij = (alpha_temp[i] * mu_temp[i] + alpha_temp[j] * mu_temp[j]) / alpha_ij
@@ -112,7 +112,6 @@ def collapse(original_detection_centers, k, offset, max_iter=100, epsilon=1e-100
 
     try:
         with Timeout(10):
-
             beta_init = beta.copy()
             mu_prime_init = mu_prime.copy()
             covariance_prime_init = covariance_prime.copy()
@@ -120,6 +119,7 @@ def collapse(original_detection_centers, k, offset, max_iter=100, epsilon=1e-100
             d_val = float('inf')
             delta = float('inf')
             min_kl_cache = {}
+            # Perform EM until convergence
             while delta > epsilon and iteration < max_iter:
                 iteration += 1
                 clusters, clusters_inv = e_step(alpha, beta, covariance, covariance_prime, mu, mu_prime, min_kl_cache)
@@ -127,6 +127,7 @@ def collapse(original_detection_centers, k, offset, max_iter=100, epsilon=1e-100
 
                 prev_d_val = d_val
                 d_val = 0
+                # Calculate distance between original and new MoG
                 for t, (alpha_, mu_, cov_) in enumerate(zip(alpha, mu, covariance)):
                     min_dist, selected_cluster = min_kl(beta, cov_, covariance_prime, mu_, mu_prime)
                     min_kl_cache[t] = (min_dist, selected_cluster)

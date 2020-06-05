@@ -76,14 +76,15 @@ class DuplicateMerger(object):
             heat_map), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         candidates = self.find_new_candidates(
-            contours, heat_map, data, original_detection_centers)
+            contours, heat_map, data, original_detection_centers) # Merge contours around estimated object locations
         candidates = self.map_original_boxes_to_new_boxes(
-            candidates, original_detection_centers)
+            candidates, original_detection_centers) # Get box candidates that intersects with original boxes
 
         # TODO time optimization: parallelize contours/clusters resolvers.
         # TODO time optimization: convert numpy to tensorflow/keras
         best_detection_ids = {}
         filtered_data = pandas.DataFrame(columns=data.columns)
+        # Calculate for each candidate's original boxes that it intersects with, their avg_scores and then keep the maximum
         for i, candidate in candidates.items():
             label = candidate['original_detection_ids']
             original_detections = data.ix[label]
@@ -117,9 +118,11 @@ class DuplicateMerger(object):
         # to handle overlap between contour bboxes
         filtered_data = perform_nms_on_image_dataframe(filtered_data, 0.3)
 
+        # Return the boxes with the highest avg_score that our candidate gaussians intersects with 
         return filtered_data
 
     def find_new_candidates(self, contours, heat_map, data, original_detection_centers):
+        """Collapse (merge) gaussian contours around each gaussian contour, each to an estimated amount of objects in the contour area"""
         candidates = []
         for contour_i, contour in enumerate(contours[0]):
             # Get bounding box (horizontal) wrapping contour -> x, y, w, h
@@ -157,6 +160,7 @@ class DuplicateMerger(object):
                 # If the approximate number of objects is less than n (then we can reduce it) and greater than 1
                 if k >= 1 and n > k:
                     if k > Params.min_k:
+                        # Find k size MoG that better fits the data
                         beta, mu, cov = collapse(original_detection_centers[original_indexes].copy(), k, offset,
                                                  max_iter=20, epsilon=1e-10)
                     if mu is None:  # k<=Params.min_k or EM failed
@@ -176,6 +180,7 @@ class DuplicateMerger(object):
         return candidates
 
     def set_candidates(self, candidates, cov, heat_map, mu, num, offset, sub_heat_map):
+        """Calculate boxes out of given MoG variables"""
         for source_i, ((_x, _y), c) in enumerate(zip(mu, cov)):
             sigmax = numpy.sqrt(c[0, 0])
             sigmay = numpy.sqrt(c[1, 1])
@@ -298,6 +303,7 @@ class DuplicateMerger(object):
         return original_indexes
 
     def local_box_offset(self, offset, box):
+        """Add offset to box"""
         box_offset = [0, 0, 0, 0]
         box_offset[BOX.X1] = box[BOX.X1] + offset[0]
         box_offset[BOX.Y1] = box[BOX.Y1] + offset[1]
@@ -383,6 +389,7 @@ class DuplicateMerger(object):
         return original_detection_centers
 
     def map_original_boxes_to_new_boxes(self, candidates, original_detection_centers):
+        """Map original boxes to found candidate boxes (by intersection) and return the candidates that interect with original boxes"""
         x = original_detection_centers['x']
         y = original_detection_centers['y']
         matched_indexes = numpy.ndarray(
