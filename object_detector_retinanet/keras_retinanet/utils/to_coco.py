@@ -5,7 +5,7 @@ import json
 import pandas as pd
 import numpy as np
 from pycocotools.cocoeval import COCOeval
-from object_detector_retinanet.utils import create_dirpath_if_not_exist, get_last_folder, get_path_fname, rm_dir
+from object_detector_retinanet.utils import create_dirpath_if_not_exist, get_last_folder, get_path_fname, rm_dir_content
 
 
 class JsonCOCO:
@@ -90,7 +90,7 @@ class COCO:
         remove_old_output = input(
             f'Clear old output directory? [Y\\n] ({output_dir_path})')
         if remove_old_output is 'Y':
-            rm_dir(output_dir_path)
+            rm_dir_content(output_dir_path)
         create_dirpath_if_not_exist(output_dir_path)
 
     def convert(self):

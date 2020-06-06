@@ -4,6 +4,7 @@ import sys
 import platform
 import ntpath
 import csv
+import shutil
 
 __author__ = 'roeiherz'
 
@@ -77,10 +78,16 @@ def create_dirpath_if_not_exist(dir_path):
         os.makedirs(dir_path)
 
 
-def rm_dir(dir_path):
+def rm_dir_content(dir_path):
     if os.path.exists(dir_path):
-        os.unlink(dir_path)
-                
+        for f in os.listdir(dir_path):
+            file_path = os.path.join(dir_path, f)
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+
+
+def rm_dir(dir_path):
+    shutil.rmtree(dir_path, ignore_errors=True)
 
 
 def get_path_fname(path):

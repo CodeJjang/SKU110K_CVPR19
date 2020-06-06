@@ -4,7 +4,7 @@ import ntpath
 import pandas as pd
 import numpy as np
 from collections import Counter
-from object_detector_retinanet.utils import create_dirpath_if_not_exist, get_last_folder, get_path_fname, rm_dir
+from object_detector_retinanet.utils import create_dirpath_if_not_exist, get_last_folder, get_path_fname
 from object_detector_retinanet.keras_retinanet.utils.visualization import draw_boxes
 from object_detector_retinanet.keras_retinanet.utils.image import resize_image
 from bokeh.models import ColumnDataSource, Column
