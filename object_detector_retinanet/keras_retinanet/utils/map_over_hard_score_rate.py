@@ -32,11 +32,11 @@ if __name__ == '__main__':
     configure_logging()
     args = sys.argv[1:]
 
-    if 'colab' in args:
+    if '--colab' in args:
         # Loads BokehJS
         output_notebook()
         # Remove, because later 'predict()' doesn't expect that value
-        args.remove('colab')
+        args.remove('--colab')
 
     # Inject temp_folder to all temp created files, so we can delete it in the end
     temp_folder_path = './temp'
