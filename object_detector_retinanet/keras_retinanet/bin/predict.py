@@ -106,8 +106,9 @@ def parse_args(args):
     parser.add_argument('--images-cls-cache',
                         help='Path to store images classes cache (for faster loading when images are stored in the cloud)',
                         default=args_images_cls_cache)
-    parser.add_argument('--out_dir', help='Path to out dir results.')
+    parser.add_argument('--out', help='Path to out dir results.')
     parser.add_argument('--max-annotations', help='Trim annotations to max number (easier debugging)', type=int)
+    parser.add_argument('--predict-from-cache', help='Whether to take predictions of an image from cache', action='store_true')
 
     return parser.parse_args(args)
 
@@ -159,13 +160,14 @@ def main(args=None):
         generator,
         model,
         score_threshold=args.score_threshold,
-        save_path=os.path.join(args.out_dir, 'res_images_iou'),
+        save_path=os.path.join(args.out, 'res_images_iou'),
         hard_score_rate=hard_score_rate,
         base_dir=args.base_dir,
-        out_dir=args.out_dir
+        out_dir=args.out,
+        predict_from_cache=args.predict_from_cache
     )
     # Print metrics
-    print_metrics(args.annotations, dt_annotations_path, args.max_annotations)
+    return print_metrics(args.annotations, dt_annotations_path, args.max_annotations)
 
 
 if __name__ == '__main__':

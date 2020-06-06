@@ -26,6 +26,7 @@ import os
 from tqdm import tqdm
 import cv2
 
+predictions_cache = {}
 
 def predict(
         generator,
@@ -35,7 +36,8 @@ def predict(
         save_path=None,
         hard_score_rate=1.,
         base_dir=None,
-        out_dir=None):
+        out_dir=None,
+        predict_from_cache=None):
     all_detections = [[None for i in range(generator.num_classes())] for j in range(generator.size())]
     csv_data_lst = []
     csv_data_lst.append(['image_id', 'x1', 'y1', 'x2', 'y2', 'confidence', 'hard_score'])
@@ -53,8 +55,15 @@ def predict(
         image = generator.preprocess_image(raw_image.copy())
         image, scale = generator.resize_image(image)
 
-        # run network
-        boxes, hard_scores, labels, soft_scores = model.predict_on_batch(np.expand_dims(image, axis=0))
+        # We use cached predictions when we run 'predict' many times from a script, to calculate metrics
+        if predict_from_cache and image_name in predictions_cache:
+            boxes, hard_scores, labels, soft_scores = predictions_cache[image_name]
+            boxes, hard_scores, labels, soft_scores = boxes.copy(), hard_scores.copy(), labels.copy(), soft_scores.copy()
+        else:
+            # run network
+            boxes, hard_scores, labels, soft_scores = model.predict_on_batch(np.expand_dims(image, axis=0))
+            predictions_cache[image_name] = boxes.copy(), hard_scores.copy(), labels.copy(), soft_scores.copy()
+
         soft_scores = np.squeeze(soft_scores, axis=-1)
         soft_scores = hard_score_rate * hard_scores + (1 - hard_score_rate) * soft_scores
         # correct boxes for image scale

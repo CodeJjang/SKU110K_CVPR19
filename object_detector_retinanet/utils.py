@@ -79,10 +79,8 @@ def create_dirpath_if_not_exist(dir_path):
 
 def rm_dir(dir_path):
     if os.path.exists(dir_path):
-        for f in os.listdir(dir_path):
-            file_path = os.path.join(dir_path, f)
-            if os.path.isfile(file_path):
-                os.unlink(file_path)
+        os.unlink(dir_path)
+                
 
 
 def get_path_fname(path):
