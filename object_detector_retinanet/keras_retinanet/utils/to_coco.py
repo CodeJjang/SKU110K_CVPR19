@@ -173,14 +173,17 @@ def print_metrics(gt_annotations_path, dt_annotations_path, max_gt_annotations):
 
     # running evaluation
     cocoEval = COCOeval(gt_coco_format, dt_coco_format, iouType='bbox')
-    cocoEval.params.areaRng = [[0, 100000000]]
-    cocoEval.params.areaRngLbl = ['all']
+    # cocoEval.params.areaRng = [[0, 100000000]]
+    # cocoEval.params.areaRngLbl = ['small', 'medium', 'large', 'all']
     cocoEval.params.maxDets = [300]
     cocoEval.evaluate()
     cocoEval.accumulate()
     ap_all = summarize(cocoEval, ap=1, maxDets=300)
     ap_easy = summarize(cocoEval, ap=1, maxDets=300, iouThr=0.5)
     ap_strict = summarize(cocoEval, ap=1, maxDets=300, iouThr=0.75)
+    ap_small = summarize(cocoEval, ap=1, areaRng='small', maxDets=300)
+    ap_medium = summarize(cocoEval, ap=1, areaRng='medium', maxDets=300)
+    ap_large = summarize(cocoEval, ap=1, areaRng='large', maxDets=300)
     ar_all = summarize(cocoEval, ap=0, maxDets=300)
     return ap_all, ap_easy, ap_strict, ar_all
 
