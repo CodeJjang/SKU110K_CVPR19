@@ -69,7 +69,7 @@ class Generator(object):
         self.transform_parameters   = transform_parameters or TransformParameters()
         self.compute_anchor_targets = compute_anchor_targets
         self.augmentations_tactic = augmentations_tactic
-        
+
         self.group_index = 0
         self.lock        = threading.Lock()
 
@@ -176,18 +176,12 @@ class Generator(object):
             annotations[:, 2] /= width
             annotations[:, 1] /= height
             annotations[:, 3] /= height
-            classes = annotations[:, 4]
-            annotations = annotations[:, :4]
-            # annotations = annotations.astype(np.float32)
-            image, annotations = distort_image_with_autoaugment(image, annotations, 'v0')
+            image, annotations = distort_image_with_autoaugment(image, annotations[:, :4], 'v0')
             # Return annotations to original scale
             annotations[:, 0] *= width
             annotations[:, 2] *= width
             annotations[:, 1] *= height
             annotations[:, 3] *= height
-            annotations = np.hstack((annotations, classes.reshape(len(classes), 1)))
-            # annotations = annotations.astype(np.float64)
-            # image = image.astype(np.float32)
 
         return image, annotations
 
