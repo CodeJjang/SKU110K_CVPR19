@@ -30,7 +30,7 @@ from ..utils.image import (
     resize_image,
 )
 from ..utils.transform import transform_aabb
-
+from ..utils.autoaugment import distort_image_with_autoaugment
 
 class Generator(object):
     """ Abstract generator class.
@@ -45,7 +45,8 @@ class Generator(object):
         image_min_side=800,
         image_max_side=1333,
         transform_parameters=None,
-        compute_anchor_targets=anchor_targets_bbox
+        compute_anchor_targets=anchor_targets_bbox,
+        augmentations_tactic=None,
     ):
         """ Initialize Generator object.
 
@@ -67,7 +68,8 @@ class Generator(object):
         self.image_max_side         = image_max_side
         self.transform_parameters   = transform_parameters or TransformParameters()
         self.compute_anchor_targets = compute_anchor_targets
-
+        self.augmentations_tactic = augmentations_tactic
+        
         self.group_index = 0
         self.lock        = threading.Lock()
 
@@ -161,6 +163,34 @@ class Generator(object):
 
         return image, annotations
 
+    def random_auto_augment_group_entry(self, image, annotations):
+        """ Apply auto augmentations on images and annotations according to Google paper:
+        https://arxiv.org/pdf/1906.11172.pdf
+        """
+        # randomly transform both image and annotations
+        if self.transform_generator:
+            height, width, channels = image.shape
+            image = image.astype(np.uint8)
+            # Normalize annotations
+            annotations[:, 0] /= width
+            annotations[:, 2] /= width
+            annotations[:, 1] /= height
+            annotations[:, 3] /= height
+            classes = annotations[:, 4]
+            annotations = annotations[:, :4]
+            # annotations = annotations.astype(np.float32)
+            image, annotations = distort_image_with_autoaugment(image, annotations, 'v0')
+            # Return annotations to original scale
+            annotations[:, 0] *= width
+            annotations[:, 2] *= width
+            annotations[:, 1] *= height
+            annotations[:, 3] *= height
+            annotations = np.hstack((annotations, classes.reshape(len(classes), 1)))
+            # annotations = annotations.astype(np.float64)
+            # image = image.astype(np.float32)
+
+        return image, annotations
+
     def resize_image(self, image):
         """ Resize an image using image_min_side and image_max_side.
         """
@@ -178,7 +208,10 @@ class Generator(object):
         image = self.preprocess_image(image)
 
         # randomly transform image and annotations
-        image, annotations = self.random_transform_group_entry(image, annotations)
+        if self.augmentations_tactic == 'random':
+            image, annotations = self.random_transform_group_entry(image, annotations)
+        elif self.augmentations_tactic == 'auto':
+            image, annotations = self.random_auto_augment_group_entry(image, annotations)
 
         # resize image
         image, image_scale = self.resize_image(image)

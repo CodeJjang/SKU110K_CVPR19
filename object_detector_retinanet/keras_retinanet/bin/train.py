@@ -221,7 +221,8 @@ def create_generators(args):
             image_min_side=args.image_min_side,
             image_max_side=args.image_max_side,
             images_cls_cache_path=args.images_cls_cache,
-            max_annotations=args.max_annotations
+            max_annotations=args.max_annotations,
+            augmentations_tactic=args.augmentations_tactic
         )
 
         if args.val_annotations:
@@ -350,6 +351,10 @@ def parse_args(args):
                         action='store_false')
     parser.add_argument('--freeze-backbone', help='Freeze training of backbone layers.', action='store_true')
     parser.add_argument('--random-transform', help='Randomly transform image and annotations.', action='store_true')
+    parser.add_argument('--augmentations-tactic',
+        help='Tactic to which perform augmentations.',
+        default='random',
+        choices=['random', 'auto'])
     parser.add_argument('--image-min-side', help='Rescale the image so the smallest side is min_side.', type=int,
                         default=800)
     parser.add_argument('--image-max-side', help='Rescale the image if the largest side is larger than max_side.',
