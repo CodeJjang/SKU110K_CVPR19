@@ -208,6 +208,7 @@ def create_generators(args):
             flip_x_chance=0.5,
             flip_y_chance=0.5,
         )
+        logging.info(f'Using augmentations tactic: {args.augmentations_tactic}.')
     else:
         transform_generator = random_transform_generator(flip_x_chance=0.5)
 
