@@ -169,7 +169,7 @@ def create_callbacks(model, training_model, prediction_model, validation_generat
             os.path.join(
                 args.snapshot_path,
                 'iou_{backbone}_{dataset_type}_{{epoch:02d}}.h5'.format(backbone=args.backbone,
-                                                                    dataset_type=args.dataset_type)
+                                                                        dataset_type=args.dataset_type)
             ),
             verbose=1
         )
@@ -207,6 +207,8 @@ def create_generators(args):
             flip_x_chance=0.5,
             flip_y_chance=0.5,
         )
+        logging.info(
+            f'Using augmentations tactic: {args.augmentations_tactic}.')
     else:
         transform_generator = random_transform_generator(flip_x_chance=0.5)
 
@@ -220,7 +222,8 @@ def create_generators(args):
             image_min_side=args.image_min_side,
             image_max_side=args.image_max_side,
             images_cls_cache_path=args.images_cls_cache,
-            max_annotations=args.max_annotations
+            max_annotations=args.max_annotations,
+            augmentations_tactic=args.augmentations_tactic
         )
 
         if args.val_annotations:
@@ -237,7 +240,8 @@ def create_generators(args):
         else:
             validation_generator = None
     else:
-        raise ValueError('Invalid data type received: {}'.format(args.dataset_type))
+        raise ValueError(
+            'Invalid data type received: {}'.format(args.dataset_type))
 
     return train_generator, validation_generator
 
@@ -278,28 +282,37 @@ def check_args(parsed_args):
 def parse_args(args):
     """ Parse the arguments.
     """
-    parser = argparse.ArgumentParser(description='Simple training script for training a RetinaNet network.')
-    subparsers = parser.add_subparsers(help='Arguments for specific dataset types.', dest='dataset_type')
+    parser = argparse.ArgumentParser(
+        description='Simple training script for training a RetinaNet network.')
+    subparsers = parser.add_subparsers(
+        help='Arguments for specific dataset types.', dest='dataset_type')
     subparsers.required = True
 
     coco_parser = subparsers.add_parser('coco')
-    coco_parser.add_argument('coco_path', help='Path to dataset directory (ie. /tmp/COCO).')
+    coco_parser.add_argument(
+        'coco_path', help='Path to dataset directory (ie. /tmp/COCO).')
 
     pascal_parser = subparsers.add_parser('pascal')
-    pascal_parser.add_argument('pascal_path', help='Path to dataset directory (ie. /tmp/VOCdevkit).')
+    pascal_parser.add_argument(
+        'pascal_path', help='Path to dataset directory (ie. /tmp/VOCdevkit).')
 
     kitti_parser = subparsers.add_parser('kitti')
-    kitti_parser.add_argument('kitti_path', help='Path to dataset directory (ie. /tmp/kitti).')
+    kitti_parser.add_argument(
+        'kitti_path', help='Path to dataset directory (ie. /tmp/kitti).')
 
     def csv_list(string):
         return string.split(',')
 
     oid_parser = subparsers.add_parser('oid')
     oid_parser.add_argument('main_dir', help='Path to dataset directory.')
-    oid_parser.add_argument('--version', help='The current dataset version is v4.', default='v4')
-    oid_parser.add_argument('--labels-filter', help='A list of labels to filter.', type=csv_list, default=None)
-    oid_parser.add_argument('--annotation-cache-dir', help='Path to store annotation cache.', default='.')
-    oid_parser.add_argument('--fixed-labels', help='Use the exact specified labels.', default=False)
+    oid_parser.add_argument(
+        '--version', help='The current dataset version is v4.', default='v4')
+    oid_parser.add_argument(
+        '--labels-filter', help='A list of labels to filter.', type=csv_list, default=None)
+    oid_parser.add_argument('--annotation-cache-dir',
+                            help='Path to store annotation cache.', default='.')
+    oid_parser.add_argument(
+        '--fixed-labels', help='Use the exact specified labels.', default=False)
 
     data_dir = annotation_path()
     args_annotations = data_dir + '/annotations_train.csv'
@@ -326,36 +339,51 @@ def parse_args(args):
     group.add_argument('--imagenet-weights',
                        help='Initialize the model with pretrained imagenet weights. This is the default behaviour.',
                        action='store_const', const=True, default=False)
-    group.add_argument('--weights', help='Initialize the model with weights from a file.')
+    group.add_argument(
+        '--weights', help='Initialize the model with weights from a file.')
     group.add_argument('--no-weights', help='Don\'t initialize the model with any weights.', dest='imagenet_weights',
                        action='store_const', const=False)
 
-    parser.add_argument('--backbone', help='Backbone model used by retinanet.', default='resnet50', type=str)
-    parser.add_argument('--batch-size', help='Size of the batches.', default=1, type=int)
-    parser.add_argument('--gpu', help='Id of the GPU to use (as reported by nvidia-smi).')
-    parser.add_argument('--multi-gpu', help='Number of GPUs to use for parallel processing.', type=int, default=0)
+    parser.add_argument(
+        '--backbone', help='Backbone model used by retinanet.', default='resnet50', type=str)
+    parser.add_argument(
+        '--batch-size', help='Size of the batches.', default=1, type=int)
+    parser.add_argument(
+        '--gpu', help='Id of the GPU to use (as reported by nvidia-smi).')
+    parser.add_argument(
+        '--multi-gpu', help='Number of GPUs to use for parallel processing.', type=int, default=0)
     parser.add_argument('--multi-gpu-force', help='Extra flag needed to enable (experimental) multi-gpu support.',
                         action='store_true')
-    parser.add_argument('--epochs', help='Number of epochs to train.', type=int, default=150)
-    parser.add_argument('--steps', help='Number of steps per epoch.', type=int, default=10000)
+    parser.add_argument(
+        '--epochs', help='Number of epochs to train.', type=int, default=150)
+    parser.add_argument(
+        '--steps', help='Number of steps per epoch.', type=int, default=10000)
     parser.add_argument('--snapshot-path',
                         help='Path to store snapshots of models during training (defaults to \'./snapshots\')',
                         default=args_snapshot_path)
     parser.add_argument('--tensorboard-dir', help='Log directory for Tensorboard output',
                         default=args_tensorboard_dir)
-    parser.add_argument('--no-snapshots', help='Disable saving snapshots.', dest='snapshots', action='store_false')
+    parser.add_argument('--no-snapshots', help='Disable saving snapshots.',
+                        dest='snapshots', action='store_false')
     parser.add_argument('--no-evaluation', help='Disable per epoch evaluation.', dest='evaluation',
                         action='store_false')
-    parser.add_argument('--freeze-backbone', help='Freeze training of backbone layers.', action='store_true')
-    parser.add_argument('--random-transform', help='Randomly transform image and annotations.', action='store_true')
+    parser.add_argument(
+        '--freeze-backbone', help='Freeze training of backbone layers.', action='store_true')
+    parser.add_argument(
+        '--random-transform', help='Randomly transform image and annotations.', action='store_true')
+    parser.add_argument('--augmentations-tactic',
+                        help='Tactic to which perform augmentations.',
+                        default='random',
+                        choices=['random', 'auto'])
     parser.add_argument('--image-min-side', help='Rescale the image so the smallest side is min_side.', type=int,
                         default=800)
     parser.add_argument('--image-max-side', help='Rescale the image if the largest side is larger than max_side.',
                         type=int, default=1333)
     parser.add_argument('--images-cls-cache',
-                    help='Path to store images classes cache (for faster loading when images are stored in the cloud)',
-                    default=args_images_cls_cache)
-    parser.add_argument('--max-annotations', help='Trim annotations to max number (easier debugging)', type=int)
+                        help='Path to store images classes cache (for faster loading when images are stored in the cloud)',
+                        default=args_images_cls_cache)
+    parser.add_argument(
+        '--max-annotations', help='Trim annotations to max number (easier debugging)', type=int)
 
     return check_args(parser.parse_args(args))
 
@@ -401,7 +429,8 @@ def main(args=None):
 
     # create the generators
     train_generator, validation_generator = create_generators(args)
-    logging.info('train_size:{},val_size:{}'.format(train_generator.size(),validation_generator.size()))
+    logging.info('train_size:{},val_size:{}'.format(
+        train_generator.size(), validation_generator.size()))
 
     # create the model
     if args.snapshot is not None:
@@ -410,7 +439,7 @@ def main(args=None):
         training_model = model
         prediction_model = retinanet_bbox(model=model)
     else:
-        weights = os.path.join(os.path.join(root_dir(), args.weights))
+        weights = args.weights
         # default to imagenet if nothing else is specified
         if weights is None and args.imagenet_weights:
             weights = backbone.download_imagenet()
@@ -429,7 +458,8 @@ def main(args=None):
 
     # this lets the generator compute backbone layer shapes using the actual backbone model
     if 'vgg' in args.backbone or 'densenet' in args.backbone:
-        compute_anchor_targets = functools.partial(anchor_targets_bbox, shapes_callback=make_shapes_callback(model))
+        compute_anchor_targets = functools.partial(
+            anchor_targets_bbox, shapes_callback=make_shapes_callback(model))
         train_generator.compute_anchor_targets = compute_anchor_targets
         if validation_generator is not None:
             validation_generator.compute_anchor_targets = compute_anchor_targets
