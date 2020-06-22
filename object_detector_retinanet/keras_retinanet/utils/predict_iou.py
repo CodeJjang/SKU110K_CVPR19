@@ -62,7 +62,8 @@ def predict(
         else:
             # run network
             boxes, hard_scores, labels, soft_scores = model.predict_on_batch(np.expand_dims(image, axis=0))
-            predictions_cache[image_name] = boxes.copy(), hard_scores.copy(), labels.copy(), soft_scores.copy()
+            if predict_from_cache:
+                predictions_cache[image_name] = boxes.copy(), hard_scores.copy(), labels.copy(), soft_scores.copy()
 
         soft_scores = np.squeeze(soft_scores, axis=-1)
         soft_scores = hard_score_rate * hard_scores + (1 - hard_score_rate) * soft_scores

@@ -120,3 +120,13 @@ def trim_csv_to_lines(csv_path, max_lines):
             writer.writerow(line)
 
     return new_csv_path
+
+
+def assign_to_args(args, flag, val=None):
+    try:
+        args[args.index(flag) + 1] = str(val)
+    except ValueError as e:
+        # Case flag doesn't exist, append it
+        args.insert(0, flag)
+        if val is not None:
+            args.insert(1, str(val))

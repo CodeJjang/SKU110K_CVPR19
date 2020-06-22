@@ -6,20 +6,10 @@ import numpy as np
 
 from object_detector_retinanet.keras_retinanet.bin.predict import main as predict
 from object_detector_retinanet.keras_retinanet.utils.logger import configure_logging
-from object_detector_retinanet.utils import create_dirpath_if_not_exist, rm_dir
+from object_detector_retinanet.utils import create_dirpath_if_not_exist, rm_dir, assign_to_args
 from bokeh.plotting import figure
 from bokeh.io import show, output_notebook
 from IPython.display import clear_output
-
-
-def assign_to_args(args, flag, val=None):
-    try:
-        args[args.index(flag) + 1] = str(val)
-    except ValueError as e:
-        # Case flag doesn't exist, append it
-        args.insert(0, flag)
-        if val is not None:
-            args.insert(1, str(val))
 
 
 def vis_plot(hard_score_rates, average_precisions):
