@@ -4,6 +4,7 @@ python -m debugpy --listen 5678 --wait-for-client object_detector_retinanet/kera
   --out "$DATASET_FOLDERNAME" \
   --images-cls-cache "$FOLDERNAME/images_cls_cache" \
   --max-annotations 157 \
+  --save-predicted-images \
     csv \
   --annotations "$DATASET_FOLDERNAME/annotations/annotations_val.csv" \
   "$DATASET_FOLDERNAME/iou_resnet50_csv_06.h5"

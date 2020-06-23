@@ -109,6 +109,7 @@ def parse_args(args):
     parser.add_argument('--out', help='Path to out dir results.')
     parser.add_argument('--max-annotations', help='Trim annotations to max number (easier debugging)', type=int)
     parser.add_argument('--predict-from-cache', help='Whether to take predictions of an image from cache', action='store_true')
+    parser.add_argument('--save-predicted-images', help='Whether to save predicted images with boxes (slows down inference)', action='store_true')
 
     return parser.parse_args(args)
 
@@ -155,12 +156,16 @@ def main(args=None):
     logging.info('Loading model, this may take a second...')
     model = models.load_model(args.model, backbone_name=args.backbone, convert=args.convert_model, nms=False)
 
+    save_predicted_images_path = None
+    if args.save_predicted_images:
+        save_predicted_images_path = os.path.join(args.out, 'res_images_iou'),
+
     # start prediction
     dt_annotations_path = predict(
         generator,
         model,
         score_threshold=args.score_threshold,
-        save_path=os.path.join(args.out, 'res_images_iou'),
+        save_path=save_predicted_images_path,
         hard_score_rate=hard_score_rate,
         base_dir=args.base_dir,
         out_dir=args.out,
