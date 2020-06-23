@@ -79,11 +79,12 @@ class PseudoLabeling:
             image_boxes = df[['y1', 'x1', 'y2', 'x2']].to_numpy()
             image_scores = df['confidence'].to_numpy()
             image_hard_scores = df['hard_score'].to_numpy()
-            scores = self.hard_score_rate * image_hard_scores + (1 - self.hard_score_rate) * image_scores
+            scores = self.hard_score_rate * image_hard_scores + \
+                (1 - self.hard_score_rate) * image_scores
 
             indices = tf.image.non_max_suppression(
                 image_boxes, scores, self.max_detections, iou_threshold=self.nms_iou_threshold,
-                score_threshold=float('-inf'), name=None
+                score_threshold=0.1
             )
             indices = tf.Session().run(indices)
             detections = image_boxes[indices]
