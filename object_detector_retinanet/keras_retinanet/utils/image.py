@@ -30,8 +30,8 @@ def read_image_bgr(path):
     Args
         path: Path to the image.
     """
-    image = np.asarray(Image.open(path).convert('RGB'))
-    return image[:, :, ::-1].copy()
+    image = np.ascontiguousarray(Image.open(path).convert('RGB'))
+    return image[:, :, ::-1]
 
 
 def preprocess_image(x):
