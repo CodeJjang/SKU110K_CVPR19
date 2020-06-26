@@ -110,7 +110,9 @@ def parse_args(args):
     parser.add_argument('--max-annotations', help='Trim annotations to max number (easier debugging)', type=int)
     parser.add_argument('--predict-from-cache', help='Whether to take predictions of an image from cache', action='store_true')
     parser.add_argument('--save-predicted-images', help='Whether to save predicted images with boxes (slows down inference)', action='store_true')
-
+    parser.add_argument('--flush-csv-freq', help='Frequency of images of flushing detections to csv', type=int)
+    parser.add_argument('--res-file-path', help='Path of previously saved detections csv')
+    
     return parser.parse_args(args)
 
 
@@ -169,7 +171,9 @@ def main(args=None):
         hard_score_rate=hard_score_rate,
         base_dir=args.base_dir,
         out_dir=args.out,
-        predict_from_cache=args.predict_from_cache
+        predict_from_cache=args.predict_from_cache,
+        flush_csv_freq=args.flush_csv_freq,
+        res_file=args.res_file_path
     )
     # Print metrics
     return print_metrics(args.annotations, dt_annotations_path, args.max_annotations)

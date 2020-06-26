@@ -73,11 +73,6 @@ def is_path_exists(dir_path):
     return os.path.exists(dir_path)
 
 
-def create_dirpath_if_not_exist(dir_path):
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
-
-
 def rm_dir_content(dir_path):
     if os.path.exists(dir_path):
         for f in os.listdir(dir_path):
@@ -105,19 +100,14 @@ def get_last_folder(path):
 def trim_csv_to_lines(csv_path, max_lines):
     if max_lines < 0:
         return
-    with open(csv_path, 'r', newline='') as f:
-        reader = csv.reader(f, delimiter=',')
-        lines = [row for row in reader]
+    lines = load_csv(csv_path)
 
     # Trim
     lines = lines[:max_lines]
     split = csv_path.split('.')
     new_csv_path = f'{split[0]}_{max_lines}_lines.{split[1]}'
 
-    with open(new_csv_path, 'w') as f:
-        writer = csv.writer(f, delimiter=',')
-        for line in lines:
-            writer.writerow(line)
+    write_csv(new_csv_path, lines)
 
     return new_csv_path
 
@@ -130,3 +120,24 @@ def assign_to_args(args, flag, val=None):
         args.insert(0, flag)
         if val is not None:
             args.insert(1, str(val))
+
+
+def load_csv(csv_path):
+    with open(csv_path, 'r', newline='') as f:
+        reader = csv.reader(f, delimiter=',')
+        lines = [row for row in reader]
+        return lines
+
+
+def write_csv(csv_path, data):
+    _write_csv_util(csv_path, data, 'w')
+
+
+def append_csv(csv_path, data):
+    _write_csv_util(csv_path, data, 'a')
+
+
+def _write_csv_util(csv_path, data, mode):
+    with open(csv_path, mode) as fl_csv:
+        writer = csv.writer(fl_csv, delimiter=',')
+        writer.writerows(data)
