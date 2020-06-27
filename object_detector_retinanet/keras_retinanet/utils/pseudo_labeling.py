@@ -16,8 +16,8 @@ from object_detector_retinanet.keras_retinanet.utils import EmMerger
 class PseudoLabeling:
     def __init__(self, gt_path, dt_path, hard_score_rate, out_dir):
         gt_df = load_annotations_to_df(gt_path, 'ground-truths')
-        gt_df['confidence'] = 1
-        gt_df['hard_score'] = 1
+        gt_df['confidence'] = 1.
+        gt_df['hard_score'] = 1.
 
         dt_df = load_annotations_to_df(dt_path, 'detections')
 
@@ -43,10 +43,10 @@ class PseudoLabeling:
             df = pd.concat([self.gt_df.loc[self.gt_df['image_name'] == image_name],
                             self.dt_df.loc[self.dt_df['image_name'] == image_name]])
 
-            image_boxes = df[['x1', 'y2', 'x2', 'y2']].to_numpy()
-            image_scores = df['confidence'].to_numpy()
-            image_hard_scores = df['hard_score'].to_numpy()
-            image_labels = np.zeros((len(df.index), 1))
+            image_boxes = df[['x1', 'y1', 'x2', 'y2']].to_numpy(dtype=np.float32)
+            image_scores = df['confidence'].to_numpy(dtype=np.float32)
+            image_hard_scores = df['hard_score'].to_numpy(dtype=np.float32)
+            image_labels = np.zeros((len(df.index), 1), dtype=np.int32)
             results = np.concatenate(
                 [image_boxes, np.expand_dims(image_scores, axis=1), np.expand_dims(image_hard_scores, axis=1),
                  image_labels], axis=1)

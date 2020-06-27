@@ -54,6 +54,7 @@ def predict(
     result_dir = os.path.join(out_dir, 'results')
     create_folder(result_dir)
     timestamp = datetime.datetime.utcnow()
+    
     if res_file is None:
         csv_data_lst.append(['image_id', 'x1', 'y1', 'x2',
                          'y2', 'confidence', 'hard_score'])
