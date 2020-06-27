@@ -33,6 +33,8 @@ def load_saved_image_names(csv_path):
     if not is_path_exists(csv_path):
         return []
     lines = load_csv(csv_path)
+    # Remove header columns
+    lines = lines[1:]
     return list(set([line[0] for line in lines]))
 
 
