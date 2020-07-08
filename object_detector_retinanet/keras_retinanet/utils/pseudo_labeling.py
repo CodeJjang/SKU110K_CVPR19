@@ -15,7 +15,7 @@ from object_detector_retinanet.utils import create_dirpath_if_not_exist, get_pat
 
 
 class PseudoLabeling:
-    def __init__(self, gt_path, dt_path, hard_score_rate, out_dir):
+    def __init__(self, gt_path, dt_path, hard_score_rate, nms_iou_threshold, out_dir):
         gt_df = load_annotations_to_df(gt_path, 'ground-truths')
         gt_df['confidence'] = 1.
         gt_df['hard_score'] = 1.
@@ -26,7 +26,7 @@ class PseudoLabeling:
         self.dt_df = dt_df
         self.hard_score_rate = hard_score_rate
         self.out_dir = out_dir
-        self.nms_iou_threshold = 0.5
+        self.nms_iou_threshold = nms_iou_threshold
         self.max_detections = 9999
 
     def em_merger(self):
@@ -44,7 +44,8 @@ class PseudoLabeling:
             df = pd.concat([self.gt_df.loc[self.gt_df['image_name'] == image_name],
                             self.dt_df.loc[self.dt_df['image_name'] == image_name]])
 
-            image_boxes = df[['x1', 'y1', 'x2', 'y2']].to_numpy(dtype=np.float32)
+            image_boxes = df[['x1', 'y1', 'x2', 'y2']
+                             ].to_numpy(dtype=np.float32)
             image_scores = df['confidence'].to_numpy(dtype=np.float32)
             image_hard_scores = df['hard_score'].to_numpy(dtype=np.float32)
             image_labels = np.zeros((len(df.index), 1), dtype=np.int32)
@@ -99,7 +100,7 @@ class PseudoLabeling:
 
     def to_csv(self, fname, rows):
         create_dirpath_if_not_exist(get_path_base_path(fname))
-        
+
         # Save annotations csv file
         with open(fname, 'w') as fl_csv:
             writer = csv.writer(fl_csv)
@@ -121,6 +122,8 @@ def parse_args(args):
                         choices=['nms', 'em-merger'], default='nms')
     parser.add_argument('--hard-score-rate', help='Weight for balancing hard score and IoU score.',
                         default=0.5, type=float)
+    parser.add_argument('--nms-iou-threshold', help='IoU threshold for nms.',
+                        default=0.5, type=float)
     parser.add_argument('--out', help='Path to out dir results.')
 
     return parser.parse_args(args)
@@ -132,7 +135,7 @@ if __name__ == '__main__':
     args = parse_args(args)
 
     pl = PseudoLabeling(
-        args.annotations, args.predicted_annotations, args.hard_score_rate, args.out)
+        args.annotations, args.predicted_annotations, args.hard_score_rate, args.nms_iou_threshold, args.out)
     if args.dup_removal_tactic == 'em-merger':
         pl.em_merger()
     elif args.dup_removal_tactic == 'nms':
