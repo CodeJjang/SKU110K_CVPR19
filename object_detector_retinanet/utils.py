@@ -137,6 +137,14 @@ def append_csv(csv_path, data):
     _write_csv_util(csv_path, data, 'a')
 
 
+def get_path_base_path(path):
+    '''
+    Extract base path (only folders) from file path
+    '''
+    head, tail = ntpath.split(path)
+    return head
+
+
 def _write_csv_util(csv_path, data, mode):
     with open(csv_path, mode) as fl_csv:
         writer = csv.writer(fl_csv, delimiter=',')
