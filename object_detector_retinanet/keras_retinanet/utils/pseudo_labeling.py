@@ -78,7 +78,7 @@ class PseudoLabeling:
             df = pd.concat([self.gt_df.loc[self.gt_df['image_name'] == image_name],
                             self.dt_df.loc[self.dt_df['image_name'] == image_name]])
 
-            image_boxes = df[['y1', 'x1', 'y2', 'x2']].to_numpy()
+            image_boxes = df[['x1', 'y1', 'x2', 'y2']].to_numpy()
             image_scores = df['confidence'].to_numpy()
             image_hard_scores = df['hard_score'].to_numpy()
             scores = self.hard_score_rate * image_hard_scores + \
@@ -92,7 +92,7 @@ class PseudoLabeling:
             detections = image_boxes[indices]
 
             for detection in detections:
-                row = [image_name, detection[1], detection[0], detection[3], detection[2],
+                row = [image_name, detection[0], detection[1], detection[2], detection[3],
                        'object', height, width]
                 csv_rows.append(row)
 
