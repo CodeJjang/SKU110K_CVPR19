@@ -58,7 +58,7 @@ class PseudoLabeling:
 
             for ind, detection in filtered_data.iterrows():
                 row = [image_name, detection['x1'], detection['y1'], detection['x2'], detection['y2'],
-                       'object', height, width]
+                       'object', width, height]
                 csv_rows.append(row)
 
         self.to_csv(res_file, csv_rows)
@@ -93,7 +93,7 @@ class PseudoLabeling:
 
             for detection in detections:
                 row = [image_name, detection[0], detection[1], detection[2], detection[3],
-                       'object', height, width]
+                       'object', width, height]
                 csv_rows.append(row)
 
         self.to_csv(res_file, csv_rows)
