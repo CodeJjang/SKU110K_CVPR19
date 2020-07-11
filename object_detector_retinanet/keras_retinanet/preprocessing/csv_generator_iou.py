@@ -29,8 +29,7 @@ import os.path
 import logging
 from object_detector_retinanet.keras_retinanet.preprocessing.csv_generator import get_image_existence
 from object_detector_retinanet.keras_retinanet.preprocessing.csv_generator import IMAGES_CLS_FNAME
-from object_detector_retinanet.utils import trim_csv_to_lines
-
+from object_detector_retinanet.utils import is_path_exists, trim_csv_to_lines
 
 def _parse(value, function, fmt):
     """
