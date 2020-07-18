@@ -22,7 +22,7 @@ class BayBoxExtractor:
         self.val_gt_df = val_gt_df
         self.val_fname = get_path_fname(val_gt_path)
         self.test_gt_df = test_gt_df
-        self.test_fname = get_path_fname(train_gt_path)
+        self.test_fname = get_path_fname(test_gt_path)
         self.out_dir = out_dir
 
     def _extract_annotations(self, df, fname):
