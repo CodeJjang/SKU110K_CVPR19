@@ -28,6 +28,7 @@ import logging
 from object_detector_retinanet.keras_retinanet import models
 from object_detector_retinanet.keras_retinanet.preprocessing.csv_generator import CSVGenerator
 from object_detector_retinanet.keras_retinanet.utils.predict_iou import predict
+from object_detector_retinanet.keras_retinanet.utils.predict import predict as predict_vanilla
 from object_detector_retinanet.keras_retinanet.utils.keras_version import check_keras_version
 from object_detector_retinanet.keras_retinanet.utils.logger import configure_logging
 from object_detector_retinanet.utils import image_path, annotation_path, root_dir
@@ -125,7 +126,10 @@ def parse_args(args):
                         help='Path of previously saved detections csv')
     parser.add_argument('--save-predicted-images',
                         help='Whether to save predicted images with boxes (slows down inference)', action='store_true')
-
+    parser.add_argument('--vanilla-retinanet',
+                        help='Whether the passed model is a vanilla retinanet', action='store_true')
+    parser.add_argument(
+        '--max-detections', help='Maximum number of detections', type=int, default=9999)
     return parser.parse_args(args)
 
 
@@ -176,23 +180,36 @@ def main(args=None):
     if args.save_predicted_images:
         save_predicted_images_path = os.path.join(args.out, 'res_images_iou'),
 
-    save_predicted_images_path = None
-    if args.save_predicted_images:
-        save_predicted_images_path = os.path.join(args.out, 'res_images_iou'),
-
-    # start prediction
-    dt_annotations_path = predict(
-        generator,
-        model,
-        score_threshold=args.score_threshold,
-        save_path=save_predicted_images_path,
-        hard_score_rate=hard_score_rate,
-        base_dir=args.base_dir,
-        out_dir=args.out,
-        predict_from_cache=args.predict_from_cache,
-        flush_csv_freq=args.flush_csv_freq,
-        res_file=args.res_file_path
-    )
+    if not args.vanilla_retinanet:
+        # Predict on RetinaNet + IoU head + EM merger
+        dt_annotations_path = predict(
+            generator,
+            model,
+            max_detections=args.max_detections,
+            score_threshold=args.score_threshold,
+            save_path=save_predicted_images_path,
+            hard_score_rate=hard_score_rate,
+            base_dir=args.base_dir,
+            out_dir=args.out,
+            predict_from_cache=args.predict_from_cache,
+            flush_csv_freq=args.flush_csv_freq,
+            res_file=args.res_file_path
+        )
+    else:
+        # Predict on vanilla RetinaNet + NMS
+        dt_annotations_path = predict_vanilla(
+            generator,
+            model,
+            nms_iou_threshold=args.iou_threshold,
+            max_detections=args.max_detections,
+            score_threshold=args.score_threshold,
+            save_path=save_predicted_images_path,
+            base_dir=args.base_dir,
+            out_dir=args.out,
+            predict_from_cache=args.predict_from_cache,
+            flush_csv_freq=args.flush_csv_freq,
+            res_file=args.res_file_path
+        )
     # Print metrics
     return print_metrics(args.annotations, dt_annotations_path, args.max_annotations)
 
