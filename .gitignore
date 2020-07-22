@@ -118,4 +118,5 @@ dmypy.json
 .idea/
 logs/
 images_cls_cache/
+bay-images_cls_cache/
 .vscode/
