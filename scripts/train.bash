@@ -13,5 +13,5 @@ python $FLAGS object_detector_retinanet/keras_retinanet/bin/train.py \
   --max-annotations 157 \
     csv \
   --base_dir "$DATASET_FOLDERNAME/images" \
-  --annotations "$DATASET_FOLDERNAME/annotations/pseudo-label-nms/detections_output_iou_0.5_2020-07-08 22_57_23.295040_0.3_thres.csv" \
+  --annotations "$DATASET_FOLDERNAME/annotations/annotations_train.csv" \
   --val-annotations "$DATASET_FOLDERNAME/annotations/annotations_val.csv"
