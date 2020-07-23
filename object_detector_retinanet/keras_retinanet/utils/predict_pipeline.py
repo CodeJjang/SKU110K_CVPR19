@@ -20,6 +20,7 @@ import datetime
 import logging
 import tensorflow as tf
 from object_detector_retinanet.utils import append_csv, create_folder, is_path_exists, load_csv, write_csv
+from object_detector_retinanet.keras_retinanet.utils import EmMerger
 from .visualization import draw_detections, draw_annotations
 import numpy as np
 import os
@@ -39,14 +40,13 @@ def load_saved_image_names(csv_path):
 
 
 def crop_image(image, box):
+    box = np.array(box).astype(int)
+    box = box[0]
     return image[box[1]: box[3], box[0]: box[2]]
 
 def detect_bay(model, image, scale, score_threshold, max_detections):
     boxes, scores, labels = model.predict_on_batch(
         np.expand_dims(image, axis=0))
-
-    # correct boxes for image scale
-    boxes /= scale
 
     # select indices which have a score above the threshold
     indices = np.where(scores[0, :] > score_threshold)[0]
@@ -69,6 +69,7 @@ def predict(
         nms_iou_threshold=0.5,
         max_detections=9999,
         save_path=None,
+        hard_score_rate=1.,
         base_dir=None,
         out_dir=None,
         flush_csv_freq=None,
@@ -103,12 +104,12 @@ def predict(
         image, scale_for_bay = generator.resize_image(image)
 
         # run bay detector
-        bay_box = detect_bay(bay_detection_model, image, scale_for_bay, score_threshold, max_detections)
+        bay_box = detect_bay(bay_detection_model, image, scale_for_bay, score_threshold, max_detections=1)
         bay_image = crop_image(image, bay_box)
         bay_image, scale_for_object_det = generator.resize_image(bay_image)
 
         # run object detector
-        boxes, scores, labels = object_detection_model.predict_on_batch(
+        boxes, hard_scores, labels, soft_scores = object_detection_model.predict_on_batch(
             np.expand_dims(bay_image, axis=0))
 
         soft_scores = np.squeeze(soft_scores, axis=-1)

@@ -27,7 +27,7 @@ import logging
 
 from object_detector_retinanet.keras_retinanet import models
 from object_detector_retinanet.keras_retinanet.preprocessing.csv_generator import CSVGenerator
-from object_detector_retinanet.keras_retinanet.utils.predict_pipeline import predict_pipeline
+from object_detector_retinanet.keras_retinanet.utils.predict_pipeline import predict as predict_pipeline
 from object_detector_retinanet.keras_retinanet.utils.predict import predict as predict_vanilla
 from object_detector_retinanet.keras_retinanet.utils.keras_version import check_keras_version
 from object_detector_retinanet.keras_retinanet.utils.logger import configure_logging
