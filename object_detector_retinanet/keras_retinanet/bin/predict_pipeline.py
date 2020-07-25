@@ -53,8 +53,7 @@ def create_objects_generator(args):
             image_min_side=args.image_min_side,
             image_max_side=args.image_max_side,
             base_dir=args.base_dir,
-            images_cls_cache_path=args.objects_images_cls_cache,
-            max_annotations=args.max_annotations
+            images_cls_cache_path=args.objects_images_cls_cache
         )
     else:
         raise ValueError(
@@ -73,8 +72,7 @@ def create_bays_generator(args):
             image_min_side=args.image_min_side,
             image_max_side=args.image_max_side,
             base_dir=args.base_dir,
-            images_cls_cache_path=args.bays_images_cls_cache,
-            max_annotations=args.max_annotations
+            images_cls_cache_path=args.bays_images_cls_cache
         )
     else:
         raise ValueError(
@@ -220,7 +218,8 @@ def main(args=None):
         base_dir=args.base_dir,
         out_dir=args.out,
         flush_csv_freq=args.flush_csv_freq,
-        res_file=args.res_file_path
+        res_file=args.res_file_path,
+        max_annotations=args.max_annotations
     )
     # Print metrics
     return print_metrics(args.objects_annotations, dt_annotations_path, args.max_annotations)
