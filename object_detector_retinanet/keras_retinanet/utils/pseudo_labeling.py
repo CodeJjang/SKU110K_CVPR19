@@ -11,7 +11,7 @@ from object_detector_retinanet.keras_retinanet.bin.predict import main as predic
 from object_detector_retinanet.keras_retinanet.utils.logger import configure_logging
 from object_detector_retinanet.keras_retinanet.utils.to_coco import load_annotations_to_df
 from object_detector_retinanet.keras_retinanet.utils import EmMerger
-from object_detector_retinanet.utils import create_dirpath_if_not_exist, get_path_base_path
+from object_detector_retinanet.utils import create_dirpath_if_not_exist, get_path_base_path, to_csv
 
 
 class PseudoLabeling:
@@ -61,7 +61,7 @@ class PseudoLabeling:
                        'object', width, height]
                 csv_rows.append(row)
 
-        self.to_csv(res_file, csv_rows)
+        to_csv(res_file, csv_rows)
 
     def nms(self):
         timestamp = datetime.datetime.utcnow()
@@ -96,16 +96,7 @@ class PseudoLabeling:
                        'object', width, height]
                 csv_rows.append(row)
 
-        self.to_csv(res_file, csv_rows)
-
-    def to_csv(self, fname, rows):
-        create_dirpath_if_not_exist(get_path_base_path(fname))
-
-        # Save annotations csv file
-        with open(fname, 'w') as fl_csv:
-            writer = csv.writer(fl_csv)
-            writer.writerows(rows)
-        logging.info(f'Saved output file at: {fname}')
+        to_csv(res_file, csv_rows)
 
 
 def parse_args(args):

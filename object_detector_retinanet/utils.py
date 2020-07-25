@@ -129,6 +129,16 @@ def load_csv(csv_path):
         return lines
 
 
+def to_csv(fname, rows):
+    create_dirpath_if_not_exist(get_path_base_path(fname))
+
+    # Save annotations csv file
+    with open(fname, 'w') as fl_csv:
+        writer = csv.writer(fl_csv)
+        writer.writerows(rows)
+    logging.info(f'Saved output file at: {fname}')
+
+
 def write_csv(csv_path, data):
     _write_csv_util(csv_path, data, 'w')
 

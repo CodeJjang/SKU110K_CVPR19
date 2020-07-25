@@ -3,7 +3,7 @@ import os
 import ntpath
 import xml.etree.cElementTree as ET
 import pandas as pd
-from object_detector_retinanet.utils import create_dirpath_if_not_exist, get_last_folder, get_path_fname, rm_dir_content
+from object_detector_retinanet.utils import create_dirpath_if_not_exist, get_last_folder, get_path_fname, rm_dir_content, to_csv
 from object_detector_retinanet.keras_retinanet.utils.to_coco import load_annotations_to_df
 from object_detector_retinanet.keras_retinanet.utils.image import read_image_bgr
 from tqdm import tqdm
@@ -54,7 +54,7 @@ class ImagePatcher:
                 cv2.imwrite(os.path.join(
                     self.images_out_dir, new_img_name), patch)
 
-        self.to_csv(res_file, csv_rows)
+        to_csv(res_file, csv_rows)
 
     def _assert_dirs(self, dirs):
         print('Asserting and creating dirs...')
@@ -71,7 +71,7 @@ class ImagePatcher:
         print('Starting extraction...')
         self._gen_patches(self.train_gt_df, self.train_fname)
         self._gen_patches(self.val_gt_df, self.val_fname)
-        self._gen_patches(self.test_gt_df, self.test_fname)
+        # self._gen_patches(self.test_gt_df, self.test_fname)
 
 
 if __name__ == '__main__':
