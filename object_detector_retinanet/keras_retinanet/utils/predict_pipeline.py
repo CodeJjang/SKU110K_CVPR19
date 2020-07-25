@@ -45,6 +45,12 @@ def crop_image(image, box):
     return image[box[1]: box[3], box[0]: box[2]]
 
 
+def translate_boxes_origin(boxes, x_offset, y_offset):
+    boxes[:, :, 0] += x_offset
+    boxes[:, :, 1] += y_offset
+    boxes[:, :, 2] += x_offset
+    boxes[:, :, 3] += y_offset
+
 def detect_bay(model, image, score_threshold, max_detections):
     boxes, scores, labels = model.predict_on_batch(
         np.expand_dims(image, axis=0))
@@ -130,6 +136,9 @@ def predict(
         # correct boxes for image scale
         boxes /= scale_for_object_det * scale_for_bay
         bay_box /= scale_for_bay
+        
+        # shift boxes from bay_box coordinates to image coordinates
+        translate_boxes_origin(boxes, bay_box[0][0], bay_box[0][1])
 
         # select indices which have a score above the threshold
         indices = np.where(hard_scores[0, :] > score_threshold)[0]
