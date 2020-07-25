@@ -44,6 +44,7 @@ def crop_image(image, box):
     box = box[0]
     return image[box[1]: box[3], box[0]: box[2]]
 
+
 def detect_bay(model, image, scale, score_threshold, max_detections):
     boxes, scores, labels = model.predict_on_batch(
         np.expand_dims(image, axis=0))
@@ -55,18 +56,21 @@ def detect_bay(model, image, scale, score_threshold, max_detections):
     scores = scores[0][indices]
 
     # find the order with which to sort the scores
-    scores_sort = np.argsort(-scores)[:max_detections]
+    sorted_scores_indices = np.argsort(-scores)[:max_detections]
 
     # select detections
-    image_boxes = boxes[0, indices[scores_sort], :]
-    return image_boxes
+    image_boxes = boxes[0, indices[sorted_scores_indices], :]
+    image_scores = scores[sorted_scores_indices]
+    image_labels = labels[0, indices[sorted_scores_indices]]
+    return image_boxes, image_scores, image_labels
+
 
 def predict(
-        generator,
+        objects_generator,
+        bays_generator,
         bay_detection_model,
         object_detection_model,
         score_threshold=0.05,
-        nms_iou_threshold=0.5,
         max_detections=9999,
         save_path=None,
         hard_score_rate=1.,
@@ -92,31 +96,38 @@ def predict(
     if save_path is not None:
         save_path += str(timestamp)
 
-    for i in tqdm(range(generator.size())):
-        image_name = generator.image_path(i).split(os.path.sep)[-1]
+    for objects_gen_idx in tqdm(range(objects_generator.size())):
+        image_name = objects_generator.image_path(
+            objects_gen_idx).split(os.path.sep)[-1]
 
         # Skip image if we're flushing images to csv and we've seen this image
         if flush_csv_freq is not None and image_name in image_names:
             continue
 
-        raw_image = generator.load_image(i)
-        image = generator.preprocess_image(raw_image.copy())
-        image, scale_for_bay = generator.resize_image(image)
+        raw_image = objects_generator.load_image(objects_gen_idx)
+        image = objects_generator.preprocess_image(raw_image.copy())
+        image, scale_for_bay = objects_generator.resize_image(image)
 
         # run bay detector
-        bay_box = detect_bay(bay_detection_model, image, scale_for_bay, score_threshold, max_detections=1)
-        bay_image = crop_image(image, bay_box)
-        bay_image, scale_for_object_det = generator.resize_image(bay_image)
+        # bay_box, bay_score, bay_label = detect_bay(
+        #     bay_detection_model, image, scale_for_bay, score_threshold, max_detections=1)
+        # bay_image = crop_image(image, bay_box)
+        # bay_image, scale_for_object_det = objects_generator.resize_image(
+        #     bay_image)
 
         # run object detector
+        # boxes, hard_scores, labels, soft_scores = object_detection_model.predict_on_batch(
+        #     np.expand_dims(bay_image, axis=0))
+
         boxes, hard_scores, labels, soft_scores = object_detection_model.predict_on_batch(
-            np.expand_dims(bay_image, axis=0))
+            np.expand_dims(image, axis=0))
 
         soft_scores = np.squeeze(soft_scores, axis=-1)
         soft_scores = hard_score_rate * hard_scores + \
             (1 - hard_score_rate) * soft_scores
         # correct boxes for image scale
-        boxes /= scale_for_object_det * scale_for_bay
+        # boxes /= scale_for_object_det * scale_for_bay
+        boxes /= scale_for_bay
 
         # select indices which have a score above the threshold
         indices = np.where(hard_scores[0, :] > score_threshold)[0]
@@ -126,13 +137,13 @@ def predict(
         hard_scores = hard_scores[0][indices]
 
         # find the order with which to sort the scores
-        scores_sort = np.argsort(-scores)[:max_detections]
+        sorted_scores_indices = np.argsort(-scores)[:max_detections]
 
         # select detections
-        image_boxes = boxes[0, indices[scores_sort], :]
-        image_scores = scores[scores_sort]
-        image_hard_scores = hard_scores[scores_sort]
-        image_labels = labels[0, indices[scores_sort]]
+        image_boxes = boxes[0, indices[sorted_scores_indices], :]
+        image_scores = scores[sorted_scores_indices]
+        image_hard_scores = hard_scores[sorted_scores_indices]
+        image_labels = labels[0, indices[sorted_scores_indices]]
         image_detections = np.concatenate(
             [image_boxes, np.expand_dims(image_scores, axis=1), np.expand_dims(image_labels, axis=1)], axis=1)
         results = np.concatenate(
@@ -157,17 +168,28 @@ def predict(
         if save_path is not None:
             create_folder(save_path)
 
-            draw_annotations(raw_image, generator.load_annotations(
-                i), label_to_name=generator.label_to_name)
-            draw_detections(raw_image, np.asarray(filtered_boxes), np.asarray(filtered_scores),
-                            np.asarray(filtered_labels), color=(0, 0, 255))
+            # Draw bay annotations
+            # image_full_path = objects_generator.image_path(objects_gen_idx)
+            # bay_annotations = bays_generator.image_data[image_full_path][0]
+            # bay_annotations = np.asarray([bay_annotations['x1'], bay_annotations['y1'], bay_annotations['x2'],
+            #                               bay_annotations['y2'], bays_generator.classes[bay_annotations['class']]])
+            # draw_annotations(raw_image, np.asarray([bay_annotations]),
+            #                  label_to_name=bays_generator.label_to_name)
+            # draw_detections(raw_image, bay_box, bay_score,
+            #                 bay_label, color=(0, 0, 255), label_to_name=bays_generator.label_to_name)
+
+            # Draw object annotations
+            draw_annotations(raw_image, objects_generator.load_annotations(
+                objects_gen_idx), label_to_name=objects_generator.label_to_name)
+            # draw_detections(raw_image, np.asarray(filtered_boxes), np.asarray(filtered_scores),
+            #                 np.asarray(filtered_labels), color=(0, 0, 255))
 
             cv2.imwrite(os.path.join(save_path, image_name), raw_image)
-
-        if flush_csv_freq is not None and (i + 1) % flush_csv_freq == 0:
+            
+        if flush_csv_freq is not None and (objects_gen_idx + 1) % flush_csv_freq == 0:
             append_csv(res_file, csv_data_lst)
             csv_data_lst = []
-
+        break
     # Save annotations csv file
     if flush_csv_freq is None:
         write_csv(res_file, csv_data_lst)
