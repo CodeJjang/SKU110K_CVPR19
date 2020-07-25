@@ -44,6 +44,17 @@ def crop_image(image, box):
     box = box[0]
     return image[box[1]: box[3], box[0]: box[2]]
 
+def intersected(boxes, box):
+    indices = []
+    box = box.squeeze()
+    x1, y1, x2, y2 = box
+    for idx, _box in enumerate(boxes.squeeze()):
+        _x1, _y1, _x2, _y2 = _box
+        dx = min(x2, _x2) - max(x1, _x1)
+        dy = min(y2, _y2) - max(y1, _y1)
+        if (dx>=0) and (dy>=0):
+            indices.append(idx)
+    return np.array(indices)
 
 def translate_boxes_origin(boxes, x_offset, y_offset):
     boxes[:, :, 0] += x_offset
@@ -122,23 +133,39 @@ def predict(
             bay_detection_model, image, score_threshold, max_detections=1)
         bay_image = crop_image(image, bay_box)
         
-        bay_image, scale_for_object_det = objects_generator.resize_image(
-            bay_image)
+        # bay_image, scale_for_object_det = objects_generator.resize_image(
+        #     bay_image)
         
         # run object detector
         boxes, hard_scores, labels, soft_scores = object_detection_model.predict_on_batch(
-            np.expand_dims(bay_image, axis=0))
+            np.expand_dims(image, axis=0))
+        # boxes, hard_scores, labels, soft_scores = object_detection_model.predict_on_batch(
+        #     np.expand_dims(bay_image, axis=0))
 
-        soft_scores = np.squeeze(soft_scores, axis=-1)
-        soft_scores = hard_score_rate * hard_scores + \
-            (1 - hard_score_rate) * soft_scores
+        # soft_scores = np.squeeze(soft_scores, axis=-1)
+        # soft_scores = hard_score_rate * hard_scores + \
+        #     (1 - hard_score_rate) * soft_scores
 
         # correct boxes for image scale
-        boxes /= scale_for_object_det * scale_for_bay
+        boxes /= scale_for_bay
         bay_box /= scale_for_bay
+        # boxes /= scale_for_object_det * scale_for_bay
+        # bay_box /= scale_for_bay
         
+        # get boxes indices that intersect with bay box
+        boxes_indices = intersected(boxes, bay_box)
+        boxes = boxes[:, boxes_indices]
+        hard_scores = hard_scores[:, boxes_indices]
+        labels = labels[:, boxes_indices]
+        soft_scores = np.squeeze(soft_scores, axis=-1)
+        soft_scores = soft_scores[:, boxes_indices]
+
         # shift boxes from bay_box coordinates to image coordinates
-        translate_boxes_origin(boxes, bay_box[0][0], bay_box[0][1])
+        # translate_boxes_origin(boxes, bay_box[0][0], bay_box[0][1])
+
+        
+        soft_scores = hard_score_rate * hard_scores + \
+            (1 - hard_score_rate) * soft_scores
 
         # select indices which have a score above the threshold
         indices = np.where(hard_scores[0, :] > score_threshold)[0]
