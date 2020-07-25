@@ -4,8 +4,12 @@ import ntpath
 import xml.etree.cElementTree as ET
 import pandas as pd
 from object_detector_retinanet.utils import create_dirpath_if_not_exist, get_last_folder, get_path_fname, rm_dir_content
+from object_detector_retinanet.keras_retinanet.utils.to_coco import load_annotations_to_df
+from object_detector_retinanet.keras_retinanet.utils.image import read_image_bgr
 from tqdm import tqdm
 from PIL import Image
+import cv2
+
 
 class ImagePatcher:
     """A class responsible for cropping the images dataset to patches"""
@@ -26,25 +30,29 @@ class ImagePatcher:
         self.csv_out_dir = csv_out_dir
 
     def _gen_patches(self, gt_df, fname):
-        res_file = os.path.join(self.out_dir, f'patches_{fname}')
-        image_names_gt = list(set(df['image_name']))
+        res_file = os.path.join(self.csv_out_dir, f'patches_{fname}')
+        image_names_gt = list(set(gt_df['image_name']))
         csv_rows = []
         for idx, image_name in tqdm(enumerate(image_names_gt)):
             image = read_image_bgr(os.path.join(self.images_path, image_name))
-            image_rows = df.loc[df['image_name'] == image_name]
+            image_rows = gt_df.loc[gt_df['image_name'] == image_name]
 
             height = image_rows['image_height'].values[0]
             width = image_rows['image_width'].values[0]
 
-            for row in image_rows.iterrows():
-                x1 = row['x1'].to_numpy()
-                y1 = row['y1'].to_numpy()
-                x2 = row['x2'].to_numpy()
-                y2 = row['y2'].to_numpy()
+            for _, row in image_rows.iterrows():
+                x1 = row['x1']
+                y1 = row['y1']
+                x2 = row['x2']
+                y2 = row['y2']
+                patch = image[y1: y2, x1: x2]
+
                 img_name_start, img_name_end = image_name.split('.')
                 new_img_name = f'{img_name_start}_{idx}.{img_name_end}'
                 row = [new_img_name, x1, y1, x2, y2, 'object', width, height]
                 csv_rows.append(row)
+                cv2.imwrite(os.path.join(
+                    self.images_out_dir, new_img_name), patch)
 
         self.to_csv(res_file, csv_rows)
 
@@ -70,7 +78,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Extracts images patches from dataset and saves as csv')
     parser.add_argument(
-        '--annotations', help='Path for training ground truth annotations CSV.')
+        '--train-annotations', help='Path for training ground truth annotations CSV.')
     parser.add_argument(
         '--val-annotations', help='Path for validation ground truth annotations CSV.')
     parser.add_argument(
@@ -84,6 +92,6 @@ if __name__ == '__main__':
     images_path = args.images_path
     images_folder = get_last_folder(images_path)
 
-    ip = ImagePatcher(images_path, args.annotations,
+    ip = ImagePatcher(images_path, args.train_annotations,
                       args.val_annotations, args.test_annotations, args.images_out, args.csv_out)
     ip.extract()
