@@ -40,7 +40,7 @@ class ImagePatcher:
             height = image_rows['image_height'].values[0]
             width = image_rows['image_width'].values[0]
 
-            for _, row in image_rows.iterrows():
+            for ann_idx, row in image_rows.iterrows():
                 x1 = row['x1']
                 y1 = row['y1']
                 x2 = row['x2']
@@ -48,7 +48,7 @@ class ImagePatcher:
                 patch = image[y1: y2, x1: x2]
 
                 img_name_start, img_name_end = image_name.split('.')
-                new_img_name = f'{img_name_start}_{idx}.{img_name_end}'
+                new_img_name = f'{img_name_start}_{ann_idx}.{img_name_end}'
                 row = [new_img_name, x1, y1, x2, y2, 'object', width, height]
                 csv_rows.append(row)
                 cv2.imwrite(os.path.join(
@@ -71,7 +71,7 @@ class ImagePatcher:
         print('Starting extraction...')
         self._gen_patches(self.train_gt_df, self.train_fname)
         self._gen_patches(self.val_gt_df, self.val_fname)
-        # self._gen_patches(self.test_gt_df, self.test_fname)
+        self._gen_patches(self.test_gt_df, self.test_fname)
 
 
 if __name__ == '__main__':

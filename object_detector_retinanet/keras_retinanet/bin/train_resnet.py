@@ -28,7 +28,9 @@ import keras
 import keras.preprocessing.image
 import tensorflow as tf
 from keras.utils import multi_gpu_model
-
+from keras.layers import Dense, Flatten
+import keras_resnet
+import keras_resnet.models
 # Allow relative imports when being executed as script.
 
 # if __name__ == "__main__" and __package__ is None:
@@ -50,12 +52,14 @@ from object_detector_retinanet.keras_retinanet.utils.logger import configure_log
 from object_detector_retinanet.utils import create_folder, image_path, annotation_path, root_dir, DEBUG_MODE
 import keras.models
 
+
 def load_model(filepath, convert=False):
     model = keras.models.load_model(filepath)
     if convert:
-        model.trainable = False 
+        model.trainable = False
 
     return model
+
 
 def makedirs(path):
     # Intended behavior: try to create the directory,
@@ -89,7 +93,7 @@ def model_with_weights(model, weights, skip_mismatch):
     return model
 
 
-def create_model(layers, num_classes, weights, multi_gpu=0):
+def create_model(layers, num_classes, imagenet_weights, weights, input_shape, multi_gpu=0):
     """ Creates two models (model, training_model).
 
     Args
@@ -103,19 +107,35 @@ def create_model(layers, num_classes, weights, multi_gpu=0):
         training_model   : The training model. If multi_gpu=0, this is identical to model.
     """
 
-    # choose default input
-    if inputs is None:
-        inputs = keras.layers.Input(shape=(None, None, 3))
+    # create the resnet backbone
+    # weights = weights if weights is not None else 'imagenet' if imagenet_weights else None
+    # params = {
+    #     'input_tensor': keras.layers.Input((None, None, 3)),
+    #     'include_top': False,
+    #     'pooling': 'avg',
+    #     'weights': weights
+    # }
+    
+    # if layers == 50:
+    #     base_model = keras.applications.resnet50.ResNet50(**params)
+    # elif layers == 101:
+    #     base_model = keras.applications.resnet101.ResNet101(**params)
+    # elif layers == 152:
+    #     base_model = keras.applications.resnet152.ResNet152(**params)
+    # else:
+    #     raise ValueError('Layers (\'{}\') is invalid.'.format(layers))
+
+    inputs = keras.layers.Input(shape=(None, None, 3))
 
     # create the resnet backbone
-    if backbone == 'resnet50':
-        base_model = keras_resnet.models.ResNet50(inputs, include_top=False, freeze_bn=True)
-    elif backbone == 'resnet101':
-        base_model = keras_resnet.models.ResNet101(inputs, include_top=False, freeze_bn=True)
-    elif backbone == 'resnet152':
-        base_model = keras_resnet.models.ResNet152(inputs, include_top=False, freeze_bn=True)
+    if layers == 50:
+        resnet = keras_resnet.models.ResNet50(inputs, include_top=False, freeze_bn=True)
+    elif layers == 101:
+        resnet = keras_resnet.models.ResNet101(inputs, include_top=False, freeze_bn=True)
+    elif layers == 152:
+        resnet = keras_resnet.models.ResNet152(inputs, include_top=False, freeze_bn=True)
     else:
-        raise ValueError('Backbone (\'{}\') is invalid.'.format(backbone))
+        raise ValueError('Layers (\'{}\') is invalid.'.format(layers))
 
     # add a spatial average pooling layer
     x = base_model.output
@@ -129,15 +149,15 @@ def create_model(layers, num_classes, weights, multi_gpu=0):
 
     # Keras recommends initialising a multi-gpu model on the CPU to ease weight sharing, and to prevent OOM errors.
     # optionally wrap in a parallel model
-    if multi_gpu > 1:
-        with tf.device('/cpu:0'):
-            model = model_with_weights(model, weights=weights,
-                                       skip_mismatch=True)
-        training_model = multi_gpu_model(model, gpus=multi_gpu)
-    else:
-        model = model_with_weights(model, weights=weights,
-                                   skip_mismatch=True)
-        training_model = model
+    # if multi_gpu > 1:
+    #     with tf.device('/cpu:0'):
+    #         model = model_with_weights(model, weights=weights,
+    #                                    skip_mismatch=True)
+    #     training_model = multi_gpu_model(model, gpus=multi_gpu)
+    # else:
+    #     model = model_with_weights(model, weights=weights,
+    #                                skip_mismatch=True)
+    #     training_model = model
 
     # compile model
     training_model.compile(
@@ -293,10 +313,6 @@ def check_args(parsed_args):
         raise ValueError(
             "Multi-GPU support is experimental, use at own risk! Run with --multi-gpu-force if you wish to continue.")
 
-    if 'resnet' not in parsed_args.backbone:
-        warnings.warn(
-            'Using experimental backbone {}. Only resnet50 has been properly tested.'.format(parsed_args.backbone))
-
     return parsed_args
 
 
@@ -398,9 +414,9 @@ def parse_args(args):
                         default='random',
                         choices=['random', 'auto'])
     parser.add_argument('--image-min-side', help='Rescale the image so the smallest side is min_side.', type=int,
-                        default=800)
+                        default=400)
     parser.add_argument('--image-max-side', help='Rescale the image if the largest side is larger than max_side.',
-                        type=int, default=1333)
+                        type=int, default=666)
     parser.add_argument('--images-cls-cache',
                         help='Path to store images classes cache (for faster loading when images are stored in the cloud)',
                         default=args_images_cls_cache)
@@ -461,31 +477,24 @@ def main(args=None):
         model = load_model(args.snapshot)
         training_model = model
     else:
-        weights = args.weights
+        # weights = args.weights
         # default to imagenet if nothing else is specified
-        if weights is None and args.imagenet_weights:
-            weights = backbone.download_imagenet()
+        # if weights is None and args.imagenet_weights:
+        #     weights = backbone.download_imagenet()
 
         logging.info('Creating model, this may take a second...')
-        
+
         model, training_model = create_model(
             layers=args.layers,
             num_classes=train_generator.num_classes(),
-            weights=weights,
-            multi_gpu=args.multi_gpu,
-            freeze_backbone=args.freeze_backbone
+            weights=args.weights,
+            imagenet_weights=args.imagenet_weights,
+            input_shape=(args.image_max_side, args.image_max_side, 3),
+            multi_gpu=args.multi_gpu
         )
 
     # print model summary
     # print(model.summary())
-
-    # this lets the generator compute backbone layer shapes using the actual backbone model
-    if 'vgg' in args.backbone or 'densenet' in args.backbone:
-        compute_anchor_targets = functools.partial(
-            anchor_targets_bbox, shapes_callback=make_shapes_callback(model))
-        train_generator.compute_anchor_targets = compute_anchor_targets
-        if validation_generator is not None:
-            validation_generator.compute_anchor_targets = compute_anchor_targets
 
     # create the callbacks
     callbacks = create_callbacks(
