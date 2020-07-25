@@ -8,6 +8,7 @@ python $FLAGS object_detector_retinanet/keras_retinanet/bin/predict.py \
   --out "$DATASET_FOLDERNAME" \
   --images-cls-cache "$FOLDERNAME/images_cls_cache" \
   --max-annotations 157 \
+  --save-predicted-images \
     csv \
   --annotations "$DATASET_FOLDERNAME/annotations/annotations_val.csv" \
   "$DATASET_FOLDERNAME/iou_resnet50_csv_06.h5"
