@@ -174,11 +174,7 @@ def main(args=None):
 
     save_predicted_images_path = None
     if args.save_predicted_images:
-        save_predicted_images_path = os.path.join(args.out, 'res_images_iou'),
-
-    save_predicted_images_path = None
-    if args.save_predicted_images:
-        save_predicted_images_path = os.path.join(args.out, 'res_images_iou'),
+        save_predicted_images_path = os.path.join(args.out, 'res_images_iou')
 
     # start prediction
     dt_annotations_path = predict(
