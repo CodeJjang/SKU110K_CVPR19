@@ -133,24 +133,14 @@ def predict(
             bay_detection_model, image, score_threshold, max_detections=1)
         bay_image = crop_image(image, bay_box)
         
-        # bay_image, scale_for_object_det = objects_generator.resize_image(
-        #     bay_image)
         
         # run object detector
         boxes, hard_scores, labels, soft_scores = object_detection_model.predict_on_batch(
             np.expand_dims(image, axis=0))
-        # boxes, hard_scores, labels, soft_scores = object_detection_model.predict_on_batch(
-        #     np.expand_dims(bay_image, axis=0))
-
-        # soft_scores = np.squeeze(soft_scores, axis=-1)
-        # soft_scores = hard_score_rate * hard_scores + \
-        #     (1 - hard_score_rate) * soft_scores
 
         # correct boxes for image scale
         boxes /= scale_for_bay
         bay_box /= scale_for_bay
-        # boxes /= scale_for_object_det * scale_for_bay
-        # bay_box /= scale_for_bay
         
         # get boxes indices that intersect with bay box
         boxes_indices = intersected(boxes, bay_box)
@@ -159,9 +149,6 @@ def predict(
         labels = labels[:, boxes_indices]
         soft_scores = np.squeeze(soft_scores, axis=-1)
         soft_scores = soft_scores[:, boxes_indices]
-
-        # shift boxes from bay_box coordinates to image coordinates
-        # translate_boxes_origin(boxes, bay_box[0][0], bay_box[0][1])
 
         
         soft_scores = hard_score_rate * hard_scores + \
