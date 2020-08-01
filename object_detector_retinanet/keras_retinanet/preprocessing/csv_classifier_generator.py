@@ -14,7 +14,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-
+from .classifier_generator import ClassifierGenerator
 from .generator import Generator
 from object_detector_retinanet.keras_retinanet.preprocessing.get_image_size import get_image_size
 from ..utils.image import read_image_bgr
@@ -33,13 +33,172 @@ import os
 import logging
 from object_detector_retinanet.utils import is_path_exists, trim_csv_to_lines
 
+IMAGES_CLS_FNAME = 'images_cls.pkl'
 
-class CSVClassifierGenerator(CSVGenerator):
-    """ Generate data for a custom CSV dataset for classification task (image patches).
+
+def _parse(value, function, fmt):
+    """
+    Parse a string into a value, and format a nice ValueError if it fails.
+
+    Returns `function(value)`.
+    Any `ValueError` raised is catched and a new `ValueError` is raised
+    with message `fmt.format(e)`, where `e` is the caught `ValueError`.
+    """
+    try:
+        return function(value)
+    except ValueError as e:
+        raise_from(ValueError(fmt.format(e)), None)
+
+
+def _read_classes(csv_reader):
+    """ Parse the classes file given by csv_reader.
+    """
+    result = {}
+    for line, row in enumerate(csv_reader):
+        line += 1
+
+        try:
+            class_name, class_id = row
+        except ValueError:
+            raise_from(ValueError(
+                'line {}: format should be \'class_name,class_id\''.format(line)), None)
+        class_id = _parse(
+            class_id, int, 'line {}: malformed class ID: {{}}'.format(line))
+
+        if class_name in result:
+            raise ValueError(
+                'line {}: duplicate class name: \'{}\''.format(line, class_name))
+        result[class_name] = class_id
+    return result
+
+
+def _read_images(base_dir):
+    result = {}
+    dirs = [os.path.join(base_dir, o) for o in os.listdir(
+        base_dir) if os.path.isdir(os.path.join(base_dir, o))]
+    if len(dirs) == 0:
+        dirs = ['']
+    for project in dirs:
+        project_imgs = os.listdir(os.path.join(base_dir, project))
+        i = 0
+        logging.info("Loading images...")
+        for image in tqdm(project_imgs):
+            try:
+                img_file = os.path.join(base_dir, project, image)
+                # Check images exists
+                exists = os.path.isfile(img_file)
+
+                if not exists:
+                    logging.warning("Warning: Image file {} is not existing".format(img_file))
+                    continue
+
+                # Image shape
+                height, width = get_image_size(img_file)
+                result[img_file] = {"width": width, "height": height}
+                i += 1
+                # if i == 10:
+                #     break
+            except Exception as e:
+                logging.error("Error: {} in image: {}".format(str(e), img_file))
+                continue
+
+    return result
+
+
+def _read_annotations(csv_reader, classes, base_dir, image_existence):
+    """ Read annotations from the csv_reader.
+    """
+    result = {}
+    for line, row in enumerate(csv_reader):
+        line += 1
+
+        try:
+            img_file, class_name, width, height = row[:]
+            width = int(width)
+            height = int(height)
+
+            # Append root path
+            img_file = os.path.join(base_dir, img_file)
+            # Check images exists
+            if img_file not in image_existence:
+                logging.warning("Warning: Image file {} is not existing".format(img_file))
+                continue
+
+        except ValueError:
+            raise_from(ValueError(
+                'line {}: format should be \'img_file,class_name\' or \'img_file,,,,,\''.format(line)),
+                None)
+
+        if img_file not in result:
+            result[img_file] = []
+
+        # If a row contains only an image path, it's an image without annotations.
+        if (class_name) == ('', '', '', '', ''):
+            continue
+
+        # check if the current class name is correctly present
+        if class_name not in classes:
+            raise ValueError('line {}: unknown class name: \'{}\' (classes: {})'.format(
+                line, class_name, classes))
+
+        result[img_file].append(
+            {'class': class_name})
+    return result
+
+
+def _open_for_csv(path):
+    """ Open a file with flags suitable for csv.reader.
+
+    This is different for python2 it means with mode 'rb',
+    for python3 this means 'r' with "universal newlines".
+    """
+    if sys.version_info[0] < 3:
+        return open(path, 'rb')
+    else:
+        return open(path, 'r', newline='')
+
+
+def _save_images_to_cache(images_cls_path, images_cls):
+    logging.info(f'Creating images cache at {images_cls_path}')
+    with open(images_cls_path, 'wb') as output:
+        pickle.dump(images_cls, output, pickle.HIGHEST_PROTOCOL)
+
+
+def _load_images_from_cache(images_cls_path):
+    logging.info(f'Loading images cache from {images_cls_path}')
+    with open(images_cls_path, 'rb') as input:
+        return pickle.load(input)
+
+
+def get_image_existence(base_dir, cache_path, cache_fname):
+    """ Read images from either cache or their folder
+    """
+    cache_file_path = os.path.join(cache_path, cache_fname)
+    if cache_path is None or not is_path_exists(cache_file_path):
+        image_existence = _read_images(base_dir)
+
+        if cache_path is not None:
+            utils.create_dirpath_if_not_exist(cache_path)
+            _save_images_to_cache(cache_file_path, image_existence)
+    else:
+        image_existence = _load_images_from_cache(cache_file_path)
+
+    return image_existence
+
+
+class CSVClassifierGenerator(ClassifierGenerator):
+    """ Generate data for a custom CSV dataset.
+
+    See https://github.com/fizyr/keras-retinanet#csv-datasets for more information.
     """
 
     def __init__(
             self,
+            csv_data_file,
+            csv_class_file,
+            base_dir=None,
+            images_cls_cache_path=None,
+            max_annotations=None,
             **kwargs
     ):
         """ Initialize a CSV data generator.
@@ -49,6 +208,44 @@ class CSVClassifierGenerator(CSVGenerator):
             csv_class_file: Path to the CSV classes file.
             base_dir: Directory w.r.t. where the files are to be searched (defaults to the directory containing the csv_data_file).
         """
+        self.image_names = []
+        self.image_data = {}
+        self.base_dir = base_dir
+
+        # Trim annotations if max_annotations is set
+        if max_annotations is not None and max_annotations > 0:
+            csv_data_file = trim_csv_to_lines(csv_data_file, max_annotations)
+
+        # Take base_dir from annotations file if not explicitly specified.
+        if self.base_dir is None:
+            self.base_dir = os.path.dirname(csv_data_file)
+
+        # parse the provided class file
+        try:
+            with _open_for_csv(csv_class_file) as file:
+                self.classes = _read_classes(csv.reader(file, delimiter=','))
+        except ValueError as e:
+            raise_from(ValueError(
+                'invalid CSV class file: {}: {}'.format(csv_class_file, e)), None)
+
+        self.labels = {}
+        for key, value in self.classes.items():
+            self.labels[value] = key
+
+        # build mappings for existence
+        self.image_existence = get_image_existence(
+            base_dir, images_cls_cache_path, IMAGES_CLS_FNAME)
+
+        # csv with img_path, class_name
+        try:
+            with _open_for_csv(csv_data_file) as file:
+                self.image_data = _read_annotations(csv.reader(file, delimiter=','), self.classes, self.base_dir,
+                                                    self.image_existence)
+        except ValueError as e:
+            raise_from(ValueError(
+                'invalid CSV annotations file: {}: {}'.format(csv_data_file, e)), None)
+        self.image_names = list(self.image_data.keys())
+
         super(CSVClassifierGenerator, self).__init__(**kwargs)
 
     def size(self):
@@ -98,14 +295,10 @@ class CSVClassifierGenerator(CSVGenerator):
         """
         path = self.image_names[image_index]
         annots = self.image_data[path]
-        boxes = np.zeros((len(annots), 5))
+        classes = np.zeros((len(annots)))
 
         for idx, annot in enumerate(annots):
             class_name = annot['class']
-            boxes[idx, 0] = float(annot['x1'])
-            boxes[idx, 1] = float(annot['y1'])
-            boxes[idx, 2] = float(annot['x2'])
-            boxes[idx, 3] = float(annot['y2'])
-            boxes[idx, 4] = self.name_to_label(class_name)
+            classes[idx] = self.name_to_label(class_name)
 
-        return boxes
+        return classes

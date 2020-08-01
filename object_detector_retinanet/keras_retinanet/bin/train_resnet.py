@@ -17,11 +17,9 @@ limitations under the License.
 """
 
 import argparse
-import functools
 import os
 import sys
 import time
-import warnings
 import logging
 
 import keras
@@ -29,6 +27,7 @@ import keras.preprocessing.image
 import tensorflow as tf
 from keras.utils import multi_gpu_model
 from keras.layers import Dense, Flatten
+from keras.models import Model
 import keras_resnet
 import keras_resnet.models
 # Allow relative imports when being executed as script.
@@ -43,7 +42,7 @@ from object_detector_retinanet.keras_retinanet import losses
 from object_detector_retinanet.keras_retinanet import models
 from object_detector_retinanet.keras_retinanet.callbacks import RedirectModel
 from object_detector_retinanet.keras_retinanet.models.retinanet import retinanet_bbox
-from object_detector_retinanet.keras_retinanet.preprocessing.csv_generator import CSVGenerator
+from object_detector_retinanet.keras_retinanet.preprocessing.csv_classifier_generator import CSVClassifierGenerator
 from object_detector_retinanet.keras_retinanet.utils.anchors import make_shapes_callback, anchor_targets_bbox
 from object_detector_retinanet.keras_retinanet.utils.keras_version import check_keras_version
 from object_detector_retinanet.keras_retinanet.utils.model import freeze as freeze_model
@@ -51,6 +50,31 @@ from object_detector_retinanet.keras_retinanet.utils.transform import random_tra
 from object_detector_retinanet.keras_retinanet.utils.logger import configure_logging
 from object_detector_retinanet.utils import create_folder, image_path, annotation_path, root_dir, DEBUG_MODE
 import keras.models
+from object_detector_retinanet.utils import replace_env_vars
+from keras.utils import get_file
+
+
+def download_imagenet(depth):
+    """ Downloads ImageNet weights and returns path to weights file.
+    """
+    resnet_filename = 'ResNet-{}-model.keras.h5'
+    resnet_resource = 'https://github.com/fizyr/keras-models/releases/download/v0.0.1/{}'.format(resnet_filename)
+
+    filename = resnet_filename.format(depth)
+    resource = resnet_resource.format(depth)
+    if depth == 50:
+        checksum = '3e9f4e4f77bbe2c9bec13b53ee1c2319'
+    elif depth == 101:
+        checksum = '05dc86924389e5b401a9ea0348a3213c'
+    elif depth == 152:
+        checksum = '6ee11ef2b135592f8031058820bb9e71'
+
+    return get_file(
+        filename,
+        resource,
+        cache_subdir='models',
+        md5_hash=checksum
+    )
 
 
 def load_model(filepath, convert=False):
@@ -115,7 +139,7 @@ def create_model(layers, num_classes, imagenet_weights, weights, input_shape, mu
     #     'pooling': 'avg',
     #     'weights': weights
     # }
-    
+
     # if layers == 50:
     #     base_model = keras.applications.resnet50.ResNet50(**params)
     # elif layers == 101:
@@ -126,26 +150,28 @@ def create_model(layers, num_classes, imagenet_weights, weights, input_shape, mu
     #     raise ValueError('Layers (\'{}\') is invalid.'.format(layers))
 
     inputs = keras.layers.Input(shape=(None, None, 3))
+    if num_classes == 1:
+        num_classes += 1
 
     # create the resnet backbone
     if layers == 50:
-        resnet = keras_resnet.models.ResNet50(inputs, include_top=False, freeze_bn=True)
+        model = keras_resnet.models.ResNet50(inputs, classes=num_classes, include_top=True, freeze_bn=True)
     elif layers == 101:
-        resnet = keras_resnet.models.ResNet101(inputs, include_top=False, freeze_bn=True)
+        model = keras_resnet.models.ResNet101(inputs, classes=num_classes, include_top=True, freeze_bn=True)
     elif layers == 152:
-        resnet = keras_resnet.models.ResNet152(inputs, include_top=False, freeze_bn=True)
+        model = keras_resnet.models.ResNet152(inputs, classes=num_classes, include_top=True, freeze_bn=True)
     else:
         raise ValueError('Layers (\'{}\') is invalid.'.format(layers))
 
     # add a spatial average pooling layer
-    x = base_model.output
-    x = Flatten()(x)
-    # add a fully-connected layer
-    outputs = Dense(num_classes,
-                    activation='softmax',
-                    kernel_initializer='he_normal')(model)
-
-    model = Model(inputs=base_model.input, outputs=outputs)
+    # x = base_model.output
+    # x = Flatten()(x)
+    # # add a fully-connected layer
+    # outputs = Dense(num_classes,
+    #                 activation='softmax',
+    #                 kernel_initializer='he_normal')(x)
+    #
+    # model = Model(inputs=base_model.input, outputs=outputs)
 
     # Keras recommends initialising a multi-gpu model on the CPU to ease weight sharing, and to prevent OOM errors.
     # optionally wrap in a parallel model
@@ -155,20 +181,20 @@ def create_model(layers, num_classes, imagenet_weights, weights, input_shape, mu
     #                                    skip_mismatch=True)
     #     training_model = multi_gpu_model(model, gpus=multi_gpu)
     # else:
-    #     model = model_with_weights(model, weights=weights,
-    #                                skip_mismatch=True)
+    model = model_with_weights(model, weights=weights,
+                               skip_mismatch=True)
     #     training_model = model
 
     # compile model
-    training_model.compile(
-        loss='categorical_crossentropy',
+    model.compile(
+        loss='sparse_categorical_crossentropy',
         optimizer=keras.optimizers.adam(lr=1e-5, clipnorm=0.001)
     )
 
-    return model, training_model
+    return model
 
 
-def create_callbacks(model, training_model, validation_generator, args):
+def create_callbacks(model, args):
     """ Creates the callbacks to use during training.
 
     Args
@@ -209,8 +235,8 @@ def create_callbacks(model, training_model, validation_generator, args):
         checkpoint = keras.callbacks.ModelCheckpoint(
             os.path.join(
                 args.snapshot_path,
-                '{backbone}_{dataset_type}_{{epoch:02d}}.h5'.format(backbone=args.backbone,
-                                                                    dataset_type=args.dataset_type)
+                'resnet{layers}_{dataset_type}_{{epoch:02d}}.h5'.format(layers=args.layers,
+                                                                        dataset_type=args.dataset_type)
             ),
             verbose=1
         )
@@ -254,7 +280,7 @@ def create_generators(args):
         transform_generator = random_transform_generator(flip_x_chance=0.5)
 
     if args.dataset_type == 'csv':
-        train_generator = CSVGenerator(
+        train_generator = CSVClassifierGenerator(
             args.annotations,
             args.classes,
             base_dir=args.base_dir,
@@ -268,7 +294,7 @@ def create_generators(args):
         )
 
         if args.val_annotations:
-            validation_generator = CSVGenerator(
+            validation_generator = CSVClassifierGenerator(
                 args.val_annotations,
                 args.classes,
                 base_dir=args.base_dir,
@@ -412,7 +438,7 @@ def parse_args(args):
     parser.add_argument('--augmentations-tactic',
                         help='Tactic to which perform augmentations.',
                         default='random',
-                        choices=['random', 'auto'])
+                        choices=['random'])
     parser.add_argument('--image-min-side', help='Rescale the image so the smallest side is min_side.', type=int,
                         default=400)
     parser.add_argument('--image-max-side', help='Rescale the image if the largest side is larger than max_side.',
@@ -434,6 +460,7 @@ def main(args=None):
     if args is None:
         args = sys.argv[1:]
     args = parse_args(args)
+    replace_env_vars(args)
 
     if DEBUG_MODE:
         args.image_min_side = 200
@@ -475,19 +502,18 @@ def main(args=None):
     if args.snapshot is not None:
         logging.info('Loading model, this may take a second...')
         model = load_model(args.snapshot)
-        training_model = model
     else:
-        # weights = args.weights
+        weights = args.weights
         # default to imagenet if nothing else is specified
-        # if weights is None and args.imagenet_weights:
-        #     weights = backbone.download_imagenet()
+        if weights is None and args.imagenet_weights:
+            weights = download_imagenet(args.layers)
 
         logging.info('Creating model, this may take a second...')
 
-        model, training_model = create_model(
+        model = create_model(
             layers=args.layers,
             num_classes=train_generator.num_classes(),
-            weights=args.weights,
+            weights=weights,
             imagenet_weights=args.imagenet_weights,
             input_shape=(args.image_max_side, args.image_max_side, 3),
             multi_gpu=args.multi_gpu
@@ -499,13 +525,11 @@ def main(args=None):
     # create the callbacks
     callbacks = create_callbacks(
         model,
-        training_model,
-        validation_generator,
-        args,
+        args
     )
 
     # start training
-    training_model.fit_generator(
+    model.fit_generator(
         generator=train_generator,
         steps_per_epoch=args.steps,
         epochs=args.epochs,
