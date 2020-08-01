@@ -25,9 +25,6 @@ import logging
 import keras
 import keras.preprocessing.image
 import tensorflow as tf
-from keras.utils import multi_gpu_model
-from keras.layers import Dense, Flatten
-from keras.models import Model
 import keras_resnet
 import keras_resnet.models
 # Allow relative imports when being executed as script.
@@ -43,9 +40,7 @@ from object_detector_retinanet.keras_retinanet import models
 from object_detector_retinanet.keras_retinanet.callbacks import RedirectModel
 from object_detector_retinanet.keras_retinanet.models.retinanet import retinanet_bbox
 from object_detector_retinanet.keras_retinanet.preprocessing.csv_classifier_generator import CSVClassifierGenerator
-from object_detector_retinanet.keras_retinanet.utils.anchors import make_shapes_callback, anchor_targets_bbox
 from object_detector_retinanet.keras_retinanet.utils.keras_version import check_keras_version
-from object_detector_retinanet.keras_retinanet.utils.model import freeze as freeze_model
 from object_detector_retinanet.keras_retinanet.utils.transform import random_transform_generator
 from object_detector_retinanet.keras_retinanet.utils.logger import configure_logging
 from object_detector_retinanet.utils import create_folder, image_path, annotation_path, root_dir, DEBUG_MODE
@@ -131,24 +126,6 @@ def create_model(layers, num_classes, imagenet_weights, weights, input_shape, mu
         training_model   : The training model. If multi_gpu=0, this is identical to model.
     """
 
-    # create the resnet backbone
-    # weights = weights if weights is not None else 'imagenet' if imagenet_weights else None
-    # params = {
-    #     'input_tensor': keras.layers.Input((None, None, 3)),
-    #     'include_top': False,
-    #     'pooling': 'avg',
-    #     'weights': weights
-    # }
-
-    # if layers == 50:
-    #     base_model = keras.applications.resnet50.ResNet50(**params)
-    # elif layers == 101:
-    #     base_model = keras.applications.resnet101.ResNet101(**params)
-    # elif layers == 152:
-    #     base_model = keras.applications.resnet152.ResNet152(**params)
-    # else:
-    #     raise ValueError('Layers (\'{}\') is invalid.'.format(layers))
-
     inputs = keras.layers.Input(shape=(None, None, 3))
     if num_classes == 1:
         num_classes += 1
@@ -163,27 +140,8 @@ def create_model(layers, num_classes, imagenet_weights, weights, input_shape, mu
     else:
         raise ValueError('Layers (\'{}\') is invalid.'.format(layers))
 
-    # add a spatial average pooling layer
-    # x = base_model.output
-    # x = Flatten()(x)
-    # # add a fully-connected layer
-    # outputs = Dense(num_classes,
-    #                 activation='softmax',
-    #                 kernel_initializer='he_normal')(x)
-    #
-    # model = Model(inputs=base_model.input, outputs=outputs)
-
-    # Keras recommends initialising a multi-gpu model on the CPU to ease weight sharing, and to prevent OOM errors.
-    # optionally wrap in a parallel model
-    # if multi_gpu > 1:
-    #     with tf.device('/cpu:0'):
-    #         model = model_with_weights(model, weights=weights,
-    #                                    skip_mismatch=True)
-    #     training_model = multi_gpu_model(model, gpus=multi_gpu)
-    # else:
     model = model_with_weights(model, weights=weights,
                                skip_mismatch=True)
-    #     training_model = model
 
     # compile model
     model.compile(
