@@ -37,19 +37,18 @@ class ImagePatcher:
             image = read_image_bgr(os.path.join(self.images_path, image_name))
             image_rows = gt_df.loc[gt_df['image_name'] == image_name]
 
-            height = image_rows['image_height'].values[0]
-            width = image_rows['image_width'].values[0]
-
             for ann_idx, row in image_rows.iterrows():
                 x1 = row['x1']
                 y1 = row['y1']
                 x2 = row['x2']
                 y2 = row['y2']
                 patch = image[y1: y2, x1: x2]
+                width = x2 - x1
+                height = y2 - y1
 
                 img_name_start, img_name_end = image_name.split('.')
                 new_img_name = f'{img_name_start}_{ann_idx}.{img_name_end}'
-                row = [new_img_name, x1, y1, x2, y2, 'object', width, height]
+                row = [new_img_name, 'object', width, height]
                 csv_rows.append(row)
                 cv2.imwrite(os.path.join(
                     self.images_out_dir, new_img_name), patch)
