@@ -10,8 +10,8 @@ python $FLAGS object_detector_retinanet/keras_retinanet/bin/train_resnet.py \
   --epochs 1 \
   --steps 1 \
   --tensorboard-update-freq 20 \
+  --max-annotations 157 \
     csv \
   --base_dir "$DATASET_FOLDERNAME/images_patches" \
   --annotations "$DATASET_FOLDERNAME/annotations/patches/patches_annotations_train_157_lines.csv" \
   --val-annotations "$DATASET_FOLDERNAME/annotations/patches/patches_annotations_val_157_lines.csv"
-  # --max-annotations 157 \
