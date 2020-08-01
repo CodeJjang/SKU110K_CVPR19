@@ -9,7 +9,8 @@ from object_detector_retinanet.keras_retinanet.utils.image import read_image_bgr
 from tqdm import tqdm
 from PIL import Image
 import cv2
-
+import sys
+import select
 
 class ImagePatcher:
     """A class responsible for cropping the images dataset to patches"""
@@ -58,9 +59,11 @@ class ImagePatcher:
     def _assert_dirs(self, dirs):
         print('Asserting and creating dirs...')
         output_dir_path = dirs
-        remove_old_output = input(
-            f'Clear old output directory? [Y\\n] ({output_dir_path})')
-        if remove_old_output is 'Y':
+        print(f'Clear old output directory? [Y\\n] ({output_dir_path})')
+
+        inp, _, _ = select.select([sys.stdin], [], [], 5)
+
+        if inp and sys.stdin.readline().strip() is 'Y':
             rm_dir_content(output_dir_path)
         create_dirpath_if_not_exist(output_dir_path)
 
