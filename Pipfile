@@ -12,6 +12,7 @@ pillow = "==6.0.0"
 keras-retinanet = "==0.5.0"
 pandas = "==0.24.2"
 pycocotools = "==2.0.0"
+keras-metrics = "*"
 
 [dev-packages]
 jupyter = "==1.0.0"

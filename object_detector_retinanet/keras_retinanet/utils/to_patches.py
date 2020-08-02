@@ -49,7 +49,7 @@ class ImagePatcher:
 
                 img_name_start, img_name_end = image_name.split('.')
                 new_img_name = f'{img_name_start}_{ann_idx}.{img_name_end}'
-                row = [new_img_name, 'object', width, height]
+                row = [new_img_name, 'sku', width, height]
                 csv_rows.append(row)
                 cv2.imwrite(os.path.join(
                     self.images_out_dir, new_img_name), patch)

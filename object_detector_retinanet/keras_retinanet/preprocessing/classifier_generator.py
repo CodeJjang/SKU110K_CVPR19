@@ -204,7 +204,7 @@ class ClassifierGenerator(object):
         labels_batch = np.zeros((self.batch_size,) + annotations_group[0].shape, dtype=keras.backend.floatx())
         # copy all labels and regression values to the batch blob
         for index, labels in enumerate(annotations_group):
-            labels_batch[index, ...] = keras.utils.to_categorical(labels, self.num_classes())
+            labels_batch[index, ...] = labels
         return labels_batch
 
     def compute_input_output(self, group):

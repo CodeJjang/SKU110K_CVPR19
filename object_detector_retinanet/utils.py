@@ -20,9 +20,11 @@ if DEBUG_MODE:
 
 def replace_env_vars(args):
     for attr in dir(args):
+        attr_val = getattr(args, attr)
+        if not isinstance(attr_val, str):
+            continue
         for env_var in os.environ.keys():
-            attr_val = getattr(args, attr)
-            if isinstance(attr_val, str) and f'${env_var}' in attr_val:
+            if f'${env_var}' in attr_val:
                 setattr(args, attr, attr_val.replace(f'${env_var}', os.environ[env_var]))
 
 

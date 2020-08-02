@@ -47,6 +47,7 @@ from object_detector_retinanet.utils import create_folder, image_path, annotatio
 import keras.models
 from object_detector_retinanet.utils import replace_env_vars
 from keras.utils import get_file
+import keras_metrics
 
 
 def download_imagenet(depth):
@@ -112,7 +113,7 @@ def model_with_weights(model, weights, skip_mismatch):
     return model
 
 
-def create_model(layers, num_classes, imagenet_weights, weights, input_shape, multi_gpu=0):
+def create_model(layers, num_classes, weights):
     """ Creates two models (model, training_model).
 
     Args
@@ -146,7 +147,10 @@ def create_model(layers, num_classes, imagenet_weights, weights, input_shape, mu
     # compile model
     model.compile(
         loss='sparse_categorical_crossentropy',
-        optimizer=keras.optimizers.adam(lr=1e-5, clipnorm=0.001)
+        optimizer=keras.optimizers.adam(lr=1e-5, clipnorm=0.001),
+        metrics=[
+            keras_metrics.precision(), keras_metrics.recall()
+        ]
     )
 
     return model
@@ -348,7 +352,7 @@ def parse_args(args):
     csv_parser.add_argument('--annotations', help='Path to CSV file containing annotations for training.',
                             default=args_annotations)
     csv_parser.add_argument('--classes', help='Path to a CSV file containing class label mapping.',
-                            default=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'class_mappings.csv'))
+                            default=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sku_class_mappings.csv'))
     csv_parser.add_argument('--val-annotations',
                             help='Path to CSV file containing annotations for validation (optional).',
                             default=args_val_annotations)
@@ -471,10 +475,7 @@ def main(args=None):
         model = create_model(
             layers=args.layers,
             num_classes=train_generator.num_classes(),
-            weights=weights,
-            imagenet_weights=args.imagenet_weights,
-            input_shape=(args.image_max_side, args.image_max_side, 3),
-            multi_gpu=args.multi_gpu
+            weights=weights
         )
 
     # print model summary

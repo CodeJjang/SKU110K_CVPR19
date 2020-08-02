@@ -114,8 +114,6 @@ def _read_annotations(csv_reader, classes, base_dir, image_existence):
 
         try:
             img_file, class_name, width, height = row[:]
-            width = int(width)
-            height = int(height)
 
             # Append root path
             img_file = os.path.join(base_dir, img_file)
